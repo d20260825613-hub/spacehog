@@ -132,12 +132,17 @@ function main() {
   if (published.status === 0) {
     console.log(`  release already exists: ${JSON.parse(published.stdout).url}`);
   } else if (dryRun) {
-    console.log(`  would run: gh release create ${tag} ${path.basename(notesFile)} --title "spacehog ${VERSION}" --latest`);
+    console.log(
+      `  would run: gh release create ${tag} --notes-file ${path.basename(notesFile)} --title "spacehog ${VERSION}" --latest`,
+    );
   } else {
+    // --notes-file is required. Passing the file as a positional argument makes
+    // gh upload it as a release asset and leave the notes empty.
     const created = run('gh', [
       'release',
       'create',
       tag,
+      '--notes-file',
       notesFile,
       '--title',
       `spacehog ${VERSION}`,
