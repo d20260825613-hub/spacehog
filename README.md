@@ -124,7 +124,7 @@ From source:
 git clone https://github.com/d20260825613-hub/spacehog.git
 cd spacehog
 node bin/spacehog.js .        # no install step, no dependencies
-npm test                      # 98 tests across 8 files
+npm test                      # 99 tests across 8 files
 npm run smoke                 # end-to-end CLI check
 ```
 
@@ -233,7 +233,7 @@ spacehog/
 │   ├── reporter.js          # text / Markdown / JSON renderers + the severity verdict
 │   └── util.js              # byte formatting, size parsing, path and time helpers
 ├── test/
-│   ├── *.test.js            # 8 suites, 98 tests (node:test, no test framework)
+│   ├── *.test.js            # 8 suites, 99 tests (node:test, no test framework)
 │   ├── fixtures.js          # one deterministic tree reused by several suites
 │   └── helpers/
 │       ├── tmp.js           # temp-dir and tree builders, auto-cleanup

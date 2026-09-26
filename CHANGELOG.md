@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Issue forms for bug reports and feature requests, a pull request template,
+  `SECURITY.md` with an explicit threat model, a Contributor Covenant code of
+  conduct, and a Dependabot config scoped to development dependencies.
+- `.gitattributes` forcing LF for all text files, so a Windows checkout cannot
+  silently rewrite the tree to CRLF.
+- Maintainer tooling under `scripts/`, documented in `scripts/README.md`.
+
+### Fixed
+
+- De-flaked the `mapPool` concurrency test. It asserted a peak-concurrency
+  number derived from `setTimeout`, which could legitimately be 1 on a loaded
+  machine; it now uses an explicit gate and asserts the exact slot count.
+
 ## [0.1.0] - 2025-01-01
 
 ### Added
@@ -23,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--fail-on-dupes <size>` for CI gates, plus documented exit codes.
 - Programmatic API (`audit`, `walk`, `findDuplicates`, renderers) exported from
   `src/index.js`.
-- Test suite on `node:test` (98 tests, ~400 assertions across 8 files), an
+- Test suite on `node:test` (99 tests, ~420 assertions across 8 files), an
   end-to-end smoke test and a GitHub Actions matrix for Linux, macOS and
   Windows on Node 18/20/22/24.
 

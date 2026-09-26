@@ -66,19 +66,60 @@ test('isSupportedAlgorithm accepts the documented set', () => {
 
 test('mapPool preserves order and bounds concurrency', async () => {
   const items = Array.from({ length: 25 }, (_, i) => i);
+  const limit = 4;
   let active = 0;
   let peak = 0;
-  const results = await mapPool(items, 4, async (value) => {
+
+  // Workers hold their slot until every slot is occupied, which makes the
+  // assertions deterministic. Using a timer instead would be flaky by
+  // construction: on a loaded machine four 2ms timers can fire one after
+  // another, and a "peak > 1" check would fail even though the pool is correct.
+  let openGate;
+  const gate = new Promise((resolve) => {
+    openGate = resolve;
+  });
+
+  const results = await mapPool(items, limit, async (value) => {
     active += 1;
     peak = Math.max(peak, active);
-    await new Promise((resolve) => setTimeout(resolve, 2));
-    active -= 1;
+    // The four runners reach their first await synchronously, so this fires
+    // only once all `limit` slots are in use.
+    if (active === limit) openGate();
+    try {
+      await gate;
+    } finally {
+      active -= 1;
+    }
     return value * 2;
   });
 
   assert.deepEqual(results, items.map((value) => value * 2));
-  assert.ok(peak <= 4, `peak concurrency was ${peak}`);
-  assert.ok(peak > 1, 'work should actually run in parallel');
+  assert.equal(peak, limit, `the pool should use exactly ${limit} slots, saw ${peak}`);
+  assert.equal(active, 0, 'every slot must be released');
+});
+
+test('mapPool never exceeds its limit even for slow workers', async () => {
+  // Same idea, but the workers yield to the event loop between entering and
+  // leaving, which is where an off-by-one in the pool would show up.
+  const items = Array.from({ length: 12 }, (_, i) => i);
+  const limit = 3;
+  let active = 0;
+  let peak = 0;
+  let order = 0;
+  const completions = [];
+
+  const results = await mapPool(items, limit, async (value) => {
+    active += 1;
+    peak = Math.max(peak, active);
+    await new Promise((resolve) => setImmediate(resolve));
+    active -= 1;
+    completions.push(order++);
+    return value;
+  });
+
+  assert.deepEqual(results, items);
+  assert.ok(peak <= limit, `peak concurrency was ${peak}, limit ${limit}`);
+  assert.equal(completions.length, items.length, 'every item must complete exactly once');
 });
 
 test('mapPool handles an empty list and a limit above the list size', async () => {
