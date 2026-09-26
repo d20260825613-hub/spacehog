@@ -76,7 +76,13 @@ GITHUB_TOKEN=ghp_... node scripts/publish-and-release.js
 - `scripts/publish-to-github.js` — push files only. Idempotent: files whose
   content already matches upstream are skipped, so re-running is safe.
 - `scripts/publish-and-release.js` — push files, then create the `v0.1.0` tag.
+- `scripts/create-release.js` — create the GitHub Release from the notes in
+  `REPO-ABOUT.md`.
 - `--dry-run` lists what would be uploaded without contacting GitHub.
+
+Every maintenance script is described in [`scripts/README.md`](scripts/README.md),
+including the two GitHub API quirks (empty-repo `409`s, and why the Contents API
+is used instead of the Git Data API) that the publisher works around.
 
 A fine-grained token needs **Repository permissions → Contents: Read and write**
 to push files, plus **Account permissions → Administration: Read and write** to
