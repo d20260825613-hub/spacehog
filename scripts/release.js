@@ -33,9 +33,18 @@ const dryRun = process.argv.includes('--dry-run');
 const notesIndex = process.argv.indexOf('--notes');
 const notesFile = path.resolve(projectRoot, notesIndex >= 0 ? process.argv[notesIndex + 1] : 'RELEASE-NOTES.md');
 
-/** PATH with the workspace's portable git/npm, for hosts where they are not installed. */
+/**
+ * PATH with the machine's tools, for hosts where git/node/gh are not installed
+ * globally. `gh` matters here: this script shells out to it for the Release, and
+ * forgetting its directory is exactly how a release stops at the last step.
+ */
 function env() {
-  const dirs = ['D:\\dsh\\_tools\\git\\cmd', 'D:\\dsh\\_tools\\node', gitDir].filter((d) => fs.existsSync(d));
+  const dirs = [
+    'D:\\dsh\\_tools\\git\\cmd',
+    'D:\\dsh\\_tools\\node',
+    'D:\\dsh\\_tools\\gh\\bin',
+    gitDir,
+  ].filter((d) => d && fs.existsSync(d));
   const extra = dirs.filter((d) => !(process.env.PATH ?? '').includes(d));
   return extra.length > 0
     ? { ...process.env, PATH: `${extra.join(path.delimiter)}${path.delimiter}${process.env.PATH}` }
