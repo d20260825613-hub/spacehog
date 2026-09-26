@@ -239,11 +239,13 @@ spacehog/
 │       ├── tmp.js           # temp-dir and tree builders, auto-cleanup
 │       └── cli.js           # run the real CLI, with a fallback for locked-down hosts
 ├── scripts/
+│   ├── README.md            # what every maintenance script is for
 │   ├── run-tests.js         # `npm test` entry point, identical on Node 18-24
 │   ├── test-files.js        # runs the suite without per-file child processes
 │   ├── smoke.js             # end-to-end checks against the real binary
 │   ├── publish-to-github.js # push files via the REST API (no git needed)
-│   └── publish-and-release.js # the same, plus the v0.1.0 tag
+│   ├── publish-and-release.js # the same, plus the v0.1.0 tag
+│   └── edge-cdp.js          # minimal DevTools-protocol client (maintainer tooling)
 ├── .github/workflows/ci.yml # 3 OSes x Node 18/20/22/24, plus a self-audit job
 ├── package.json             # no `dependencies` key at all — that is the point
 ├── README.md                # this file
