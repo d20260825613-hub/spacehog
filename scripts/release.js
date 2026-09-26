@@ -90,15 +90,32 @@ function main() {
   }
 
   // 2. tag state -----------------------------------------------------------
+  // The strict rule is "the tag must point at HEAD". An already *published*
+  // release freezes that: moving its tag would silently change what users
+  // downloaded. An unpublished tag may follow HEAD, otherwise a fix committed
+  // between tagging and publishing would deadlock the release forever.
   step(2, 4, `check tag ${tag}`);
-  const existing = run('git', ['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`], { allowFail: true });
   const head = run('git', ['rev-parse', 'HEAD']).stdout.trim();
-  if (existing.status === 0) {
-    const at = existing.stdout.trim();
-    if (at !== head) {
-      throw new Error(`${tag} already exists at ${at.slice(0, 7)}, HEAD is ${head.slice(0, 7)} — bump the version first`);
+  const localTag = run('git', ['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`], { allowFail: true });
+  const remoteTag = run('git', ['ls-remote', '--tags', 'origin', `refs/tags/${tag}`], { allowFail: true });
+  const onRemote = /[0-9a-f]{40}/.test(remoteTag.stdout ?? '');
+
+  const published = run('gh', ['release', 'view', tag, '--json', 'url'], { allowFail: true });
+
+  if (localTag.status === 0 && localTag.stdout.trim() === head) {
+    console.log(`  ${tag} already points at HEAD`);
+  } else if (localTag.status === 0) {
+    const at = localTag.stdout.trim();
+    if (published.status === 0) {
+      throw new Error(
+        `${tag} is already published at ${at.slice(0, 7)} and HEAD is ${head.slice(0, 7)} — bump the version instead of moving a shipped tag`,
+      );
     }
-    console.log(`  ${tag} already points at HEAD; skipping tag creation`);
+    console.log(`  ${tag} exists at ${at.slice(0, 7)} but was never published; moving it to HEAD`);
+    if (!dryRun) {
+      run('git', ['tag', '-f', '-a', tag, '-m', `spacehog ${VERSION}`]);
+      run('git', ['push', 'origin', `${tag}`, '--force']);
+    }
   } else {
     console.log(`  creating annotated tag ${tag}`);
     if (!dryRun) {
@@ -106,12 +123,14 @@ function main() {
       run('git', ['push', 'origin', tag]);
     }
   }
+  if (onRemote && localTag.status !== 0) {
+    console.log(`  note: origin already has ${tag}; the push above moved it`);
+  }
 
   // 3. GitHub Release ------------------------------------------------------
   step(3, 4, 'GitHub Release');
-  const release = run('gh', ['release', 'view', tag, '--json', 'url'], { allowFail: true });
-  if (release.status === 0) {
-    console.log(`  release already exists: ${JSON.parse(release.stdout).url}`);
+  if (published.status === 0) {
+    console.log(`  release already exists: ${JSON.parse(published.stdout).url}`);
   } else if (dryRun) {
     console.log(`  would run: gh release create ${tag} ${path.basename(notesFile)} --title "spacehog ${VERSION}" --latest`);
   } else {
