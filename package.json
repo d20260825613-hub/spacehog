@@ -33,11 +33,11 @@
   },
   "scripts": {
     "start": "node bin/spacehog.js",
-    "test": "node --test \"test/*.test.js\"",
+    "test": "node scripts/run-tests.js",
     "test:files": "node scripts/test-files.js",
-    "test:watch": "node --test --watch \"test/*.test.js\"",
+    "test:watch": "node --test --watch test/",
     "smoke": "node scripts/smoke.js",
-    "check": "node --check bin/spacehog.js && node --check src/cli.js && node --test \"test/*.test.js\""
+    "check": "node --check bin/spacehog.js && node --check src/cli.js && node scripts/run-tests.js"
   },
   "repository": {
     "type": "git",
