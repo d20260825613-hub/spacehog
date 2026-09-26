@@ -19,9 +19,15 @@ git-ignored `.github-token` file, and is never written to a command line.
 
 | Script | What it does |
 | --- | --- |
+| `release-check.js` | `npm run release:check`. Verifies the two version strings agree, the CHANGELOG has a real section for the version, the tarball npm would publish contains the CLI and the licence (and not the tests), no runtime dependency crept in, and the tree is clean and not behind upstream. Run it before tagging. Exit code 1 on any problem. |
 | `publish-to-github.js` | Creates the repository if needed, sets the About description and topics, then pushes every file. Idempotent: files whose content already matches upstream (by git blob sha) are skipped, so re-running is cheap and safe. |
 | `publish-and-release.js` | Runs the publisher, then creates the `v0.1.0` annotated tag. |
 | `create-release.js` | Creates the GitHub Release for the tag, using the notes fenced in `REPO-ABOUT.md`. |
+
+The version string is duplicated on purpose: `package.json` is what npm and
+GitHub read, and `src/util.js` is what the CLI prints without touching the
+filesystem (Node 18 cannot import JSON). `test/version.test.js` and
+`release-check.js` are the guards that stop the two from drifting apart.
 
 Two GitHub behaviours are worth knowing before editing these:
 
@@ -41,6 +47,10 @@ driven programmatically. They need Node 22+ for the built-in `WebSocket`.
 | --- | --- |
 | `edge-open.js` | Starts Edge with `--remote-debugging-port` and a dedicated profile. A dedicated `--user-data-dir` is required — Edge ignores the debug port on the default profile. Use this instead of `edge-launch.js`, which omits proxy/TLS handling. |
 | `edge-cdp.js` | Minimal CDP client: `list`, `eval`, `eval-file`, `nav`, `shot` (screenshot). `--target=<substring>` selects one tab out of several, which matters because a crashed renderer keeps its target URL. |
+
+**`edge-launch.js` is superseded and kept only for older notes.** It takes no
+proxy or TLS flags, so on a machine with an intercepting proxy the browser it
+starts cannot reach github.com (`ERR_CONNECTION_CLOSED`). Use `edge-open.js`.
 
 Example — screenshot a page you need to inspect:
 

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `npm run release:check` (`scripts/release-check.js`): verifies the two version
+  strings agree, the CHANGELOG has a section for the version, the tarball npm
+  would publish contains the CLI and the licence but not the tests, no runtime
+  dependency crept in, and the tree is clean and not behind upstream.
+- `test/version.test.js`: guards against the version drifting between
+  `package.json` and `src/util.js`, and pins the packaging contract (bin entry,
+  `files` allow-list, ESM, MIT, zero dependencies).
 - Issue forms for bug reports and feature requests, a pull request template,
   `SECURITY.md` with an explicit threat model, a Contributor Covenant code of
   conduct, and a Dependabot config scoped to development dependencies.
@@ -20,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - De-flaked the `mapPool` concurrency test. It asserted a peak-concurrency
   number derived from `setTimeout`, which could legitimately be 1 on a loaded
   machine; it now uses an explicit gate and asserts the exact slot count.
+- `release-check.js` no longer passes arguments to a shell, which removed a
+  Node `DEP0190` warning and the argument-injection surface behind it.
 
 ## [0.1.0] - 2025-01-01
 
@@ -38,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--fail-on-dupes <size>` for CI gates, plus documented exit codes.
 - Programmatic API (`audit`, `walk`, `findDuplicates`, renderers) exported from
   `src/index.js`.
-- Test suite on `node:test` (99 tests, ~420 assertions across 8 files), an
+- Test suite on `node:test` (105 tests, ~430 assertions across 9 files), an
   end-to-end smoke test and a GitHub Actions matrix for Linux, macOS and
   Windows on Node 18/20/22/24.
 
