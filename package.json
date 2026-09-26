@@ -1,0 +1,56 @@
+{
+  "name": "spacehog",
+  "version": "0.1.0",
+  "description": "Zero-dependency CLI that audits what is eating your disk: duplicate files, space hogs, junk files, sparse and empty directories.",
+  "keywords": [
+    "disk-space",
+    "duplicate-files",
+    "duplicates",
+    "cli",
+    "cleanup",
+    "storage",
+    "du",
+    "audit"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "spacehog": "bin/spacehog.js"
+  },
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "start": "node bin/spacehog.js",
+    "test": "node --test \"test/*.test.js\"",
+    "test:files": "node scripts/test-files.js",
+    "test:watch": "node --test --watch \"test/*.test.js\"",
+    "smoke": "node scripts/smoke.js",
+    "check": "node --check bin/spacehog.js && node --check src/cli.js && node --test \"test/*.test.js\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/d20260825613-hub/spacehog.git"
+  },
+  "bugs": {
+    "url": "https://github.com/d20260825613-hub/spacehog/issues"
+  },
+  "homepage": "https://github.com/d20260825613-hub/spacehog#readme",
+  "author": "d20260825613-hub",
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ]
+}
