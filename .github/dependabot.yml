@@ -1,0 +1,31 @@
+# Dependency updates are intentionally trivial here: spacehog has zero runtime
+# dependencies. This config exists to keep the CI action versions current and to
+# alert us if a dependency ever does appear (which would be a bug — see
+# SECURITY.md and the PR checklist).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: 'chore(deps)'
+    labels:
+      - dependencies
+    # A runtime dependency is a project-level decision, not a routine bump.
+    allow:
+      - dependency-type: development
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore(ci)'
+    labels:
+      - dependencies
+      - ci

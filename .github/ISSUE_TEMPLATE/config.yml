@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/d20260825613-hub/spacehog/discussions
+    about: Ask how to read a report or how to run spacehog on your tree.
+  - name: Security issue
+    url: https://github.com/d20260825613-hub/spacehog/security/advisories/new
+    about: Please report vulnerabilities privately, not in a public issue.

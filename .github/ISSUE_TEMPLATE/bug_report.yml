@@ -1,0 +1,77 @@
+name: Bug report
+description: Something behaved differently than expected
+labels: [bug, needs triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. spacehog is a small tool, so a
+        precise report usually gets a fix quickly.
+
+        Please do **not** paste full paths that contain personal information —
+        replace them with `/home/you/...` or `C:\Users\you\...`.
+
+  - type: input
+    id: version
+    attributes:
+      label: spacehog version
+      description: Output of `spacehog --version`
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      description: Output of `node --version`
+      placeholder: v20.11.1
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11, macOS 14.5, Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command you ran
+      render: shell
+      placeholder: spacehog ~/Pictures --json
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+      description: Include the error text. `--json` output or a small reproduction tree helps enormously.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Smallest directory tree that reproduces it
+      description: |
+        A few files are usually enough. For example:
+
+        ```
+        photos/a.jpg        3.2 MB
+        photos/copy-of-a.jpg 3.2 MB
+        ```
+      render: text
+    validations:
+      required: false
