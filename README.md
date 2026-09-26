@@ -279,6 +279,7 @@ spacehog/
 │   ├── run-tests.js         # `npm test` entry point, identical on Node 18-24
 │   ├── test-files.js        # runs the suite without per-file child processes
 │   ├── smoke.js             # end-to-end checks against the real binary
+│   ├── verify-package.js    # installs the packed tarball and runs the real command
 │   ├── release-check.js     # pre-tag gate: versions, CHANGELOG, tarball, git state
 │   ├── release.js           # tag + push + `gh release create`, in one command
 │   ├── edge-open.js         # start Edge with a debug port (maintainer tooling)
@@ -346,6 +347,7 @@ Issues and pull requests are welcome. Before opening a PR:
 ```bash
 npm test          # unit + integration tests
 npm run smoke     # end-to-end CLI checks
+npm run verify:package  # install the packed tarball and run the installed command
 npm run check     # syntax check + tests
 ```
 

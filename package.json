@@ -37,6 +37,7 @@
     "test:files": "node scripts/test-files.js",
     "test:watch": "node --test --watch test/",
     "smoke": "node scripts/smoke.js",
+    "verify:package": "node scripts/verify-package.js",
     "release:check": "node scripts/release-check.js",
     "release:dry": "node scripts/release.js --dry-run",
     "check": "node --check bin/spacehog.js && node --check src/cli.js && node scripts/run-tests.js"

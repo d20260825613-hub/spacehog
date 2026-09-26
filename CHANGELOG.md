@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `npm run verify:package` (`scripts/verify-package.js`): packs the real tarball,
+  installs it into a throwaway prefix and runs the *installed* command —
+  `--version`, a real audit, `--json`, `--keep`, `--fail-on-dupes`, `--help` and
+  a dynamic import of the library entry. Nothing previously exercised the path a
+  user actually takes: `npm test` runs the source tree, and `release-check.js`
+  only inspects the file list. Now runs on Linux, macOS and Windows in CI.
+
 ## [0.2.0] - 2026-09-26
 
 ### Added
