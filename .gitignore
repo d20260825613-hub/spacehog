@@ -1,0 +1,19 @@
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# local reports produced by dogfooding
+spacehog-report.json
+*.spacehog.json
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.idea/
+.vscode/
+*.swp
+
+coverage/
+.nyc_output/
