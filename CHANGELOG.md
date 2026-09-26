@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strings agree, the CHANGELOG has a section for the version, the tarball npm
   would publish contains the CLI and the licence but not the tests, no runtime
   dependency crept in, and the tree is clean and not behind upstream.
+- `scripts/release.js`: one-command release — readiness gate, annotated tag,
+  push, then `gh release create` from `RELEASE-NOTES.md`. `npm run release:dry`
+  previews every step without changing anything.
 - `test/version.test.js`: guards against the version drifting between
   `package.json` and `src/util.js`, and pins the packaging contract (bin entry,
   `files` allow-list, ESM, MIT, zero dependencies).
@@ -21,6 +24,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.gitattributes` forcing LF for all text files, so a Windows checkout cannot
   silently rewrite the tree to CRLF.
 - Maintainer tooling under `scripts/`, documented in `scripts/README.md`.
+
+### Changed
+
+- Releases now go through `gh`: `scripts/release.js` replaces the hand-rolled
+  REST publisher, and `RELEASE-NOTES.md` replaces `REPO-ABOUT.md` as the source
+  of the published notes.
+
+### Removed
+
+- `scripts/publish-to-github.js`, `scripts/publish-and-release.js` and
+  `scripts/create-release.js`. They existed because the machine that
+  bootstrapped this project had neither `git` nor `gh`; both are installed now,
+  so they were dead weight. The API quirks they encoded are recorded in
+  CONTRIBUTING.md.
+- `scripts/edge-launch.js` — superseded by `edge-open.js`, which sets the proxy
+  and TLS flags the former lacked.
+- `push-fix.ps1`, a one-off bootstrap script that asked for a token on stdin.
 
 ### Fixed
 

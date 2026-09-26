@@ -41,55 +41,47 @@ processes that `node --test` needs.
 6. **Style is enforced by review, not a formatter.** Two-space indent, single quotes,
    semicolons, JSDoc on exported functions, no TypeScript.
 
-## Publishing (maintainers)
+## Releasing (maintainers)
 
 The repository lives at https://github.com/d20260825613-hub/spacehog.
 
-On a machine with `git`, publish normally:
+Releases go through [`gh`](https://cli.github.com) — there is one script for the
+whole flow:
 
 ```bash
-git init -b main
-git add .
-git commit -m "feat: spacehog 0.1.0"
-git remote add origin https://github.com/d20260825613-hub/spacehog.git
-git push -u origin main
+# 1. bump the version in package.json AND src/util.js, then record it in CHANGELOG.md
+# 2. gate on readiness: versions agree, tarball is correct, tree is clean
+npm run release:check
+
+# 3. tag, push the tag, and publish the GitHub Release from RELEASE-NOTES.md
+node scripts/release.js
+
+# preview every step without changing anything
+node scripts/release.js --dry-run
 ```
 
-On a machine **without** `git` or `gh` (but with Node 18+, which has `fetch`),
-`scripts/publish-to-github.js` pushes every file through the GitHub REST API. It
-uses the Contents API rather than the Git Data API on purpose: a repository with
-no commits answers every Git Data call with `409 Git Repository is empty`, and
-the Contents API is the only one that can write the first file.
+`release.js` refuses to run on a dirty tree, on a version that does not match the
+CHANGELOG, or when the tag already exists at a different commit.
 
-Give it a token through the environment, or save it in the git-ignored
-`.github-token` file (keeps it out of shell history):
+GitHub Actions runs on pushes to `main` and on pull requests; **tag pushes do not
+start a workflow**, so the release is created by the command above, not by CI.
 
-```bash
-# PowerShell
-$env:GITHUB_TOKEN = "ghp_..."
-node --use-system-ca scripts/publish-and-release.js
+### Publishing without git or gh
 
-# bash
-GITHUB_TOKEN=ghp_... node scripts/publish-and-release.js
-```
+`scripts/publish-to-github.js` (removed in favour of git + `gh`) drove the REST API
+directly, and remains worth reading if you ever need to bootstrap a repository
+from a machine with neither tool. Two GitHub behaviours it had to work around:
 
-- `scripts/publish-to-github.js` — push files only. Idempotent: files whose
-  content already matches upstream are skipped, so re-running is safe.
-- `scripts/publish-and-release.js` — push files, then create the `v0.1.0` tag.
-- `scripts/create-release.js` — create the GitHub Release from the notes in
-  `REPO-ABOUT.md`.
-- `--dry-run` lists what would be uploaded without contacting GitHub.
+- A repository with **no commits** answers every Git Data API call (blobs, trees,
+  commits, refs) with `409 Git Repository is empty`. The Contents API is the only
+  one that can write the first file.
+- The missing-ref status is inconsistent: `409` on a fresh repo, `404` once any
+  ref exists. Both mean "bootstrap me".
 
-Every maintenance script is described in [`scripts/README.md`](scripts/README.md),
-including the two GitHub API quirks (empty-repo `409`s, and why the Contents API
-is used instead of the Git Data API) that the publisher works around.
+On such a host, `--use-system-ca` is needed where Node does not trust the local
+TLS interception certificate (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`).
 
-A fine-grained token needs **Repository permissions → Contents: Read and write**
-to push files, plus **Account permissions → Administration: Read and write** to
-create the repository or a tag. Delete the token right after use.
-
-`--use-system-ca` is needed on machines where Node does not trust the local TLS
-interception certificate (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`).
+Every maintenance script is described in [`scripts/README.md`](scripts/README.md).
 
 ## Project layout
 
@@ -109,8 +101,11 @@ test/helpers/                 temp-dir builders and the CLI runner
 scripts/run-tests.js          version-portable `npm test` entry point
 scripts/test-files.js         same suite without per-file child processes
 scripts/smoke.js              end-to-end checks against the real binary
-scripts/publish-to-github.js  REST-API publisher (no git required)
-scripts/publish-and-release.js publisher + v0.1.0 tag
+scripts/release-check.js      pre-tag gate (versions, CHANGELOG, tarball, git)
+scripts/release.js            tag + push + `gh release create`
+scripts/edge-open.js          start Edge with a debug port (browser fallback)
+scripts/edge-cdp.js           minimal DevTools-protocol client
+scripts/fill-device-code.js   complete a GitHub device-code page over CDP
 ```
 
 ### Why `npm test` goes through a script
