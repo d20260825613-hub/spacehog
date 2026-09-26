@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }} / node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['18.17', '20', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Show versions
+        run: node --version && npm --version
+      - name: Syntax check
+        run: |
+          node --check bin/spacehog.js
+          node --check src/cli.js
+          node --check src/index.js
+      - name: Unit and integration tests
+        run: npm test
+      - name: End-to-end smoke test
+        run: npm run smoke
+
+  self-audit:
+    name: dogfood on the repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit spacehog with spacehog
+        run: node bin/spacehog.js . --json --no-cache > spacehog-report.json
+      - name: Show the report
+        run: cat spacehog-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spacehog-self-report
+          path: spacehog-report.json
