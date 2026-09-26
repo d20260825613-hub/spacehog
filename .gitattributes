@@ -1,0 +1,19 @@
+# Normalize line endings so the repository behaves the same on every platform.
+#
+# Without this, a Windows checkout with core.autocrlf=true silently rewrites
+# every file to CRLF, which breaks shebangs (bin/spacehog.js), the CI shell
+# steps, and any diff produced on a different OS.
+* text=auto eol=lf
+
+# Explicitly LF for everything that is executed or parsed by a shell/Node.
+*.js   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
+*.ps1  text eol=lf
+
+# Never touch binary content.
+*.png binary
+*.jpg binary
+*.zip binary
+*.gz  binary

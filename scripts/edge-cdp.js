@@ -32,11 +32,19 @@ async function listTargets() {
   return response.json();
 }
 
-/** Pick the page target that looks most like a real tab. */
-function pickPage(targets) {
+/**
+ * Pick the page target that looks most like a real tab.
+ *
+ * Two details matter here: the target URL is the *requested* URL (it stays
+ * https://... even when the renderer is showing an error page), and a substring
+ * filter is how we address a specific tab out of several.
+ */
+function pickPage(targets, filter) {
   const pages = targets.filter((t) => t.type === 'page' && t.webSocketDebuggerUrl);
   if (pages.length === 0) throw new Error('no page target found');
-  return pages.find((t) => /^https?:/.test(t.url) && !t.url.startsWith('edge://')) ?? pages[0];
+  const candidates = filter ? pages.filter((t) => t.url.includes(filter)) : pages;
+  const pool = candidates.length > 0 ? candidates : pages;
+  return pool.find((t) => /^https?:/.test(t.url) && !t.url.startsWith('edge://')) ?? pool[0];
 }
 
 /** Tiny CDP session over the built-in WebSocket (Node 22+). */
@@ -80,15 +88,21 @@ class Session {
   }
 }
 
-async function withPage(fn) {
+async function withPage(fn, filter) {
   const targets = await listTargets();
-  const page = pickPage(targets);
+  const page = pickPage(targets, filter);
   const session = await Session.open(page.webSocketDebuggerUrl);
   try {
     return await fn(session, page);
   } finally {
     session.close();
   }
+}
+
+/** `--target=<substring>` addresses one specific tab; default is "any github tab". */
+function targetFilter() {
+  const flag = process.argv.find((a) => a.startsWith('--target='));
+  return flag ? flag.slice('--target='.length) : null;
 }
 
 async function main() {
@@ -116,7 +130,7 @@ async function main() {
         return { error: outcome.exceptionDetails.exception?.description ?? 'evaluation failed' };
       }
       return outcome.result.value;
-    });
+    }, targetFilter());
     console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
     return;
   }
@@ -128,7 +142,7 @@ async function main() {
       await session.send('Page.navigate', { url });
       // give the SPA/redirects a moment to settle
       await new Promise((resolve) => setTimeout(resolve, 2500));
-    });
+    }, targetFilter());
     console.log(`navigated to ${url}`);
     return;
   }
@@ -138,7 +152,7 @@ async function main() {
     const data = await withPage(async (session) => {
       const shot = await session.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
       return shot.data;
-    });
+    }, targetFilter());
     fs.writeFileSync(out, Buffer.from(data, 'base64'));
     console.log(`screenshot: ${out} (${fs.statSync(out).size} bytes)`);
     return;
