@@ -56,37 +56,67 @@ git push -u origin main
 ```
 
 On a machine **without** `git` or `gh` (but with Node 18+, which has `fetch`),
-`scripts/publish-to-github.js` creates the repository and uploads every file
-through the GitHub REST API. It needs a token with `repo` scope, passed through
-the environment so it never lands in a file:
+`scripts/publish-to-github.js` pushes every file through the GitHub REST API. It
+uses the Contents API rather than the Git Data API on purpose: a repository with
+no commits answers every Git Data call with `409 Git Repository is empty`, and
+the Contents API is the only one that can write the first file.
+
+Give it a token through the environment, or save it in the git-ignored
+`.github-token` file (keeps it out of shell history):
 
 ```bash
 # PowerShell
 $env:GITHUB_TOKEN = "ghp_..."
-node scripts/publish-to-github.js --login d20260825613-hub --repo spacehog
+node --use-system-ca scripts/publish-and-release.js
 
 # bash
-GITHUB_TOKEN=ghp_... node scripts/publish-to-github.js --login d20260825613-hub
+GITHUB_TOKEN=ghp_... node scripts/publish-and-release.js
 ```
 
-`--dry-run` lists exactly what would be uploaded without contacting GitHub.
-Delete the token right after use.
+- `scripts/publish-to-github.js` — push files only. Idempotent: files whose
+  content already matches upstream are skipped, so re-running is safe.
+- `scripts/publish-and-release.js` — push files, then create the `v0.1.0` tag.
+- `--dry-run` lists what would be uploaded without contacting GitHub.
+
+A fine-grained token needs **Repository permissions → Contents: Read and write**
+to push files, plus **Account permissions → Administration: Read and write** to
+create the repository or a tag. Delete the token right after use.
+
+`--use-system-ca` is needed on machines where Node does not trust the local TLS
+interception certificate (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`).
 
 ## Project layout
 
 ```
-bin/spacehog.js       tiny entry point
-src/args.js           argument parser, help text, glob matching
-src/walker.js         recursive directory walker (prunes, error-tolerant)
-src/hash.js           streaming hashing, bounded concurrency, on-disk hash cache
-src/detectors.js      duplicates, large files, junk, sparse files, empty dirs
-src/audit.js          orchestrates a full scan into one report object
-src/reporter.js       text, Markdown and JSON renderers
-src/cli.js            wires args -> audit -> renderer, owns exit codes
-src/index.js          programmatic API
-test/                 node:test suites and fixture helpers
-scripts/              test driver and end-to-end smoke test
+bin/spacehog.js               tiny entry point
+src/args.js                   argument parser, help text, glob matching
+src/walker.js                 recursive directory walker (prunes, error-tolerant)
+src/hash.js                   streaming hashing, bounded concurrency, on-disk hash cache
+src/detectors.js              duplicates, large files, junk, sparse files, empty dirs
+src/audit.js                  orchestrates a full scan into one report object
+src/reporter.js               text, Markdown and JSON renderers
+src/cli.js                    wires args -> audit -> renderer, owns exit codes
+src/index.js                  programmatic API
+test/*.test.js                node:test suites
+test/fixtures.js              shared deterministic tree
+test/helpers/                 temp-dir builders and the CLI runner
+scripts/run-tests.js          version-portable `npm test` entry point
+scripts/test-files.js         same suite without per-file child processes
+scripts/smoke.js              end-to-end checks against the real binary
+scripts/publish-to-github.js  REST-API publisher (no git required)
+scripts/publish-and-release.js publisher + v0.1.0 tag
 ```
+
+### Why `npm test` goes through a script
+
+`node --test` changed its file discovery between 20 and 21, and the two obvious
+forms are mutually exclusive: Node 18-20 reject the `test/*.test.js` glob
+("Could not find ...test\*.test.js") while Node 21+ reject a bare directory
+("Cannot find module .../test"). Node 18-20 also walk `test/` recursively and
+would execute `test/fixtures.js` and `test/helpers/*.js` as three bogus tests.
+`scripts/run-tests.js` therefore always passes the explicit list of top-level
+`test/*.test.js` files — the one form that means the same thing on 18, 20, 22
+and 24.
 
 ## Reporting a bug
 
