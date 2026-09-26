@@ -3,6 +3,9 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# local publishing credential (never commit this)
+.github-token
+
 # local reports produced by dogfooding
 spacehog-report.json
 *.spacehog.json
