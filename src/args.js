@@ -1,4 +1,5 @@
 import { HASH_ALGORITHMS, isSupportedAlgorithm } from './hash.js';
+import { KEEP_POLICIES } from './keep.js';
 import { parseSize } from './util.js';
 
 /**
@@ -28,6 +29,8 @@ const SPEC = {
   'max-entries': { type: 'number', default: null, min: 1 },
   concurrency: { type: 'number', short: 'c', default: 8, min: 1 },
   hash: { type: 'string', short: 'a', default: 'md5', choices: HASH_ALGORITHMS },
+  keep: { type: 'string', short: 'k', default: 'newest', choices: KEEP_POLICIES },
+  'keep-prefer': { type: 'string', default: null },
   'fail-on-dupes': { type: 'size', default: null },
   exclude: { type: 'string', repeat: true, default: [] },
   cache: { type: 'string', default: null },
@@ -55,6 +58,9 @@ Options
   -s, --min-size <size>    ignore files smaller than size, e.g. 1mb (default 0)
   -m, --max-size <size>    never fully hash files larger than size (default: all)
   -a, --hash <algo>        md5 | sha1 | sha256 (default md5)
+  -k, --keep <policy>      which copy of a duplicate to keep:
+                             newest (default), oldest, shortest-path, first
+      --keep-prefer <name> give copies inside a folder with this name priority
   -c, --concurrency <n>    parallel file reads for hashing (default 8)
       --max-depth <n>      limit directory recursion depth
       --max-entries <n>    stop collecting after n files
@@ -78,6 +84,7 @@ Examples
   spacehog                       audit the current directory
   spacehog ~/Downloads -n 20     biggest files and dupes in Downloads
   spacehog C:\\Users -s 10mb       only look at files of 10 MB and up
+  spacehog . --keep oldest       keep the original, delete the later copies
   spacehog . --json > report.json
   spacehog . --fail-on-dupes 500mb      fail CI when 500 MB is duplicated
 

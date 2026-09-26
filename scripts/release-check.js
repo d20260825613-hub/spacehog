@@ -76,14 +76,23 @@ check(
 if (expected) check(`package.json is ${expected}`, pkg.version === expected, `is ${pkg.version}`);
 
 // 2. changelog --------------------------------------------------------------
+// An empty `Unreleased` section is the *correct* state after cutting a release:
+// everything moved into the version heading. Warn instead of failing, so a
+// forgotten entry is visible without blocking a correctly-prepared release.
 const changelog = fs.readFileSync(path.join(projectRoot, 'CHANGELOG.md'), 'utf8');
 check(`CHANGELOG has a [${expected}] section`, changelog.includes(`## [${expected}]`));
 check(`CHANGELOG links [${expected}]`, changelog.includes(`[${expected}]: `));
+
 const unreleasedBody = changelog.split('## [Unreleased]')[1]?.split('## [')[0] ?? '';
+if (/###/.test(unreleasedBody)) {
+  notes.push('CHANGELOG Unreleased still has entries; move them into the version section');
+}
+
+const versionSection = changelog.split(`## [${expected}]`)[1]?.split('\n## [')[0] ?? '';
 check(
-  'CHANGELOG Unreleased is not empty',
-  /###/.test(unreleasedBody),
-  'nothing recorded since the last release',
+  `CHANGELOG [${expected}] lists changes`,
+  /###\s+(Added|Changed|Fixed|Removed|Deprecated|Security)/.test(versionSection),
+  'the version section has no Added/Changed/Fixed/Removed headings',
 );
 
 // 3. dependencies -----------------------------------------------------------

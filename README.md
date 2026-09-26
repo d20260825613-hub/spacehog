@@ -25,6 +25,7 @@ Zero dependencies · Node 18+ · Windows, macOS and Linux · Report-only, never 
   - [Recipes](#recipes)
   - [Exit codes](#exit-codes)
 - [What the report tells you](#what-the-report-tells-you)
+  - [Which copy to keep](#which-copy-to-keep)
 - [Use it as a library](#use-it-as-a-library)
 - [Project layout](#project-layout)
 - [Performance notes](#performance-notes)
@@ -124,7 +125,7 @@ From source:
 git clone https://github.com/d20260825613-hub/spacehog.git
 cd spacehog
 node bin/spacehog.js .        # no install step, no dependencies
-npm test                      # 105 tests across 9 files
+npm test                      # 118 tests across 10 files
 npm run smoke                 # end-to-end CLI check
 ```
 
@@ -145,6 +146,8 @@ is scanned.
 | `-s, --min-size <size>` | `0` | Ignore files smaller than `<size>` (`10mb`, `1.5gb`, bare bytes) |
 | `-m, --max-size <size>` | all | Never fully hash files bigger than `<size>` |
 | `-a, --hash <algo>` | `md5` | `md5`, `sha1` or `sha256` |
+| `-k, --keep <policy>` | `newest` | Which copy of a duplicate to suggest keeping: `newest`, `oldest`, `shortest-path`, `first` |
+| `--keep-prefer <name>` | – | Copies inside a folder with this name win the suggestion |
 | `-c, --concurrency <n>` | `8` | Parallel file reads while hashing |
 | `--max-depth <n>` | unlimited | Limit recursion depth |
 | `--max-entries <n>` | unlimited | Stop collecting after n files (partial report is flagged) |
@@ -169,6 +172,8 @@ is scanned.
 spacehog                                  # audit the current directory
 spacehog ~/Downloads -n 25                # top 25 in Downloads
 spacehog /data --min-size 100mb           # only look at large files
+spacehog . --keep oldest                  # treat the oldest copy as the original
+spacehog . --keep shortest-path --keep-prefer originals
 spacehog . --exclude '**/node_modules/**' --exclude '*.iso'
 spacehog . --json --pretty > report.json  # feed a dashboard
 spacehog . --markdown > report.md         # paste into an issue or PR
@@ -188,6 +193,7 @@ spacehog . --fail-on-dupes 500mb          # CI gate: fail when 500 MB is duplica
 | Section | Meaning |
 | --- | --- |
 | `duplicates` | Groups of byte-identical files. `wastedBytes` is what deleting all but one copy of each group would free. |
+| `duplicateGroups[].keep` | The copy the `--keep` policy suggests keeping, plus `redundant` with the rest. spacehog still deletes nothing. |
 | `hardlinkGroups` | Files sharing one inode. Listed separately: the bytes are stored once, so nothing is reclaimable. |
 | `largeFiles` | Biggest files, largest first. `sparse: true` flags thin-provisioned or placeholder files. |
 | `junk` | Files whose extension is regenerable by definition (`.tmp`, `.bak`, `.log`, `.pyc`, …). Review the list; `.log` and `.bak` sometimes matter. |
@@ -197,6 +203,35 @@ spacehog . --fail-on-dupes 500mb          # CI gate: fail when 500 MB is duplica
 
 The JSON report is a single stable object; `duplicateGroups[].files[].path` holds
 absolute paths, while `display` holds the path relative to the scanned root.
+
+### Which copy to keep
+
+A duplicate group is only actionable once you know which copy is the real one.
+`--keep` answers that without deleting anything:
+
+| Policy | Picks | Good when |
+| --- | --- | --- |
+| `newest` (default) | The most recently modified copy | The copy you edited last is the live one |
+| `oldest` | The least recently modified copy | The first copy is the original and the rest are exports |
+| `shortest-path` | The copy closest to the scan root | The shallow copy is the one you actually open |
+| `first` | The first copy in path order | You want a stable, predictable answer |
+
+`--keep-prefer <name>` gives copies inside a folder with that name priority over
+the policy — useful when the good copies live in `originals/` and the disposable
+ones in `exports/`. It matches the file's **immediate parent folder**, not any
+ancestor.
+
+```console
+$ spacehog ~/Pictures --keep oldest
+▌ duplicates · 1 group(s) · 3 file(s)
+  keep marks the copy to keep — keeping the least recently modified copy (treat it as the original)
+  ● 48.8 KB × 3 → save 97.7 KB
+     md5:9a7ab32b6456
+     · photos/sunset.jpg ← keep (6mo ago)
+     · backup/2023/sunset.jpg (3mo ago)
+     · photos/edited/sunset.jpg (2d ago)
+```
+
 
 ## Use it as a library
 
@@ -223,6 +258,7 @@ spacehog/
 │   └── spacehog.js          # CLI entry point (10 lines: parse argv, call run())
 ├── src/
 │   ├── index.js             # public API surface — import from here, not from internals
+│   ├── keep.js              # "which copy should I keep?" policies (pure functions)
 │   ├── cli.js               # wires args -> audit -> renderer; owns exit codes 0/1/2,
 │   │                        #   progress line, SIGINT handling, --exclude post-filter
 │   ├── args.js              # zero-dep argument parser, help text, glob -> RegExp
@@ -233,7 +269,7 @@ spacehog/
 │   ├── reporter.js          # text / Markdown / JSON renderers + the severity verdict
 │   └── util.js              # byte formatting, size parsing, path and time helpers
 ├── test/
-│   ├── *.test.js            # 9 suites, 105 tests (node:test, no test framework)
+│   ├── *.test.js            # 10 suites, 118 tests (node:test, no test framework)
 │   ├── fixtures.js          # one deterministic tree reused by several suites
 │   └── helpers/
 │       ├── tmp.js           # temp-dir and tree builders, auto-cleanup
@@ -299,9 +335,9 @@ directories → `detectors.js` analyses them (using `hash.js` for content identi
 ## Roadmap
 
 - [ ] Worker-thread hashing for trees with millions of files
-- [ ] `--keep <policy>` to suggest which copy of a duplicate to keep
 - [ ] Optional CSV export for spreadsheets
 - [ ] Machine-readable progress events (`--progress=json`) for editors
+- [x] `--keep <policy>` to suggest which copy of a duplicate to keep — shipped in [0.2.0](https://github.com/d20260825613-hub/spacehog/releases/tag/v0.2.0)
 
 ## Contributing
 

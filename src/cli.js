@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { buildExcludeFilter, parseArgs, USAGE } from './args.js';
 import { audit } from './audit.js';
+import { suggestKeep } from './keep.js';
 import { renderJson, renderMarkdown, renderText, shouldUseColor } from './reporter.js';
 import { formatBytes, parseSize, toPosix, VERSION } from './util.js';
 
@@ -151,6 +152,8 @@ async function auditOne(root, { values, exclude, cachePath, signal, onProgress }
     maxEntries: values['max-entries'] ?? Infinity,
     duplicates: values.duplicates !== false,
     algorithm: values.hash ?? 'md5',
+    keepPolicy: values.keep ?? 'newest',
+    keepPrefer: values['keep-prefer'] ?? null,
     concurrency: values.concurrency ?? 8,
     maxHashSize: values['max-size'] ?? Infinity,
     cachePath,
@@ -170,6 +173,10 @@ async function auditOne(root, { values, exclude, cachePath, signal, onProgress }
  * Exclusion happens after the walk (so directory pruning still counts toward
  * totals); it removes matching entries from every section and recomputes the
  * derived numbers, which keeps `--json` output self-consistent.
+ *
+ * The keep suggestion is recomputed too: if the excluded file was the one we
+ * suggested keeping, pointing at a path that is no longer in the report would
+ * be wrong.
  */
 export function applyExclude(report, isExcluded, patterns = []) {
   const keep = (file) => !isExcluded(toPosix(file.path));
@@ -179,7 +186,17 @@ export function applyExclude(report, isExcluded, patterns = []) {
       const files = group.files.filter(keep);
       if (files.length < 2) return null;
       const wastedBytes = group.size * (files.length - 1);
-      return { ...group, files, copies: files.length, wastedBytes };
+      const suggestion = suggestKeep(files, group.keepPolicy ?? report.options?.keepPolicy ?? 'newest', {
+        prefer: group.keepPrefer ?? report.options?.keepPrefer ?? null,
+      });
+      return {
+        ...group,
+        files,
+        copies: files.length,
+        wastedBytes,
+        keep: suggestion.keep ? { path: suggestion.keep.path, display: suggestion.keep.display } : null,
+        redundant: suggestion.redundant.map((file) => ({ path: file.path, display: file.display })),
+      };
     })
     .filter(Boolean);
 

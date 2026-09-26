@@ -26,6 +26,8 @@ import { DEFAULT_IGNORED_DIRS, walk } from './walker.js';
  * @param {number} [options.concurrency]
  * @param {number} [options.maxHashSize] never fully hash files above this size
  * @param {string} [options.cachePath] hash cache location (null disables it)
+ * @param {string} [options.keepPolicy] which copy of a duplicate to suggest keeping
+ * @param {string|null} [options.keepPrefer] folder name that wins the suggestion
  * @param {(event: object) => void} [options.onProgress]
  * @param {AbortSignal} [options.signal]
  * @returns {Promise<object>} the report object consumed by the renderers
@@ -42,6 +44,8 @@ export async function audit(options) {
     maxEntries = Infinity,
     duplicates = true,
     algorithm = 'md5',
+    keepPolicy = 'newest',
+    keepPrefer = null,
     concurrency = 8,
     maxHashSize = Infinity,
     cachePath = null,
@@ -92,13 +96,16 @@ export async function audit(options) {
   let cacheReport = { enabled: Boolean(cachePath), hits: 0, misses: 0, saved: false, entries: 0 };
 
   if (duplicates) {
-    const cache = await HashCache.load(cachePath, { enabled: Boolean(cachePath) });    onProgress?.({ phase: 'analyze', stage: 'duplicates' });
+    const cache = await HashCache.load(cachePath, { enabled: Boolean(cachePath) });
+    onProgress?.({ phase: 'analyze', stage: 'duplicates' });
     duplicateResult = await findDuplicates(relevant, {
       algorithm,
       cache,
       concurrency,
       maxFileSize: maxHashSize,
       root: walked.root,
+      keepPolicy,
+      keepPrefer,
       signal,
       onProgress: (event) => onProgress?.({ phase: 'analyze', stage: 'duplicates', ...event }),
     });
@@ -127,6 +134,8 @@ export async function audit(options) {
       followSymlinks,
       duplicates,
       algorithm,
+      keepPolicy,
+      keepPrefer,
       maxHashSize: Number.isFinite(maxHashSize) ? maxHashSize : null,
     },
     summary: {

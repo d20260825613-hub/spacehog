@@ -1,6 +1,6 @@
 {
   "name": "spacehog",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Zero-dependency CLI that audits what is eating your disk: duplicate files, space hogs, junk files, sparse and empty directories.",
   "keywords": [
     "disk-space",

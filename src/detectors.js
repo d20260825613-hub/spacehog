@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { hashFile, hashHead, mapPool, DEFAULT_HEAD_BYTES } from './hash.js';
+import { suggestKeep } from './keep.js';
 import { toPosix } from './util.js';
 
 /* ------------------------------------------------------------------ *
@@ -25,6 +26,8 @@ import { toPosix } from './util.js';
  * @param {number} [options.headBytes] bytes read in the cheap pass
  * @param {number} [options.maxFileSize] never fully hash files above this size
  * @param {string} [options.root] scanned root, used for relative `display` paths
+ * @param {string} [options.keepPolicy] which copy to suggest keeping
+ * @param {string|null} [options.keepPrefer] folder name that wins the suggestion
  * @param {(event: object) => void} [options.onProgress]
  * @param {AbortSignal} [options.signal]
  * @returns {Promise<{groups: object[], hardlinkGroups: object[], hardlinkWastedBytes: number, stats: object}>}
@@ -37,6 +40,8 @@ export async function findDuplicates(files, options = {}) {
     headBytes = DEFAULT_HEAD_BYTES,
     maxFileSize = Infinity,
     root = '',
+    keepPolicy = 'newest',
+    keepPrefer = null,
     onProgress = null,
     signal = null,
   } = options;
@@ -197,16 +202,28 @@ export async function findDuplicates(files, options = {}) {
       const saved = size * (bucket.length - 1);
       wastedBytes += saved;
       duplicateFiles += bucket.length;
+
+      // Report order stays deterministic (oldest first) so the text report is
+      // stable, but the keep suggestion is computed over the same list.
+      const files = bucket
+        .slice()
+        .sort((a, b) => a.mtimeMs - b.mtimeMs)
+        .map((file) => describeFile(file, root));
+      const suggestion = suggestKeep(files, keepPolicy, { prefer: keepPrefer });
+
       groups.push({
         hash,
         algorithm,
         size,
         copies: bucket.length,
         wastedBytes: saved,
-        files: bucket
-          .slice()
-          .sort((a, b) => a.mtimeMs - b.mtimeMs)
-          .map((file) => describeFile(file, root)),
+        files,
+        keep: suggestion.keep
+          ? { path: suggestion.keep.path, display: suggestion.keep.display }
+          : null,
+        redundant: suggestion.redundant.map((file) => ({ path: file.path, display: file.display })),
+        keepPolicy: suggestion.policy,
+        keepPrefer: suggestion.prefer,
       });
     }
     onProgress?.({ phase: 'full', checked });

@@ -6,8 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-26
+
 ### Added
 
+- `--keep <policy>` (`-k`) and `--keep-prefer <name>`: in every duplicate group,
+  spacehog now marks the copy to keep with `← keep`. Policies are `newest`
+  (default), `oldest`, `shortest-path` and `first`; `--keep-prefer` gives copies
+  inside a folder with that name priority over the policy. The suggestion is
+  computed by pure functions in `src/keep.js`, so it is cheap to test and never
+  touches the filesystem. spacehog still deletes nothing.
+- JSON: `duplicateGroups[].keep` and `.redundant`, plus `options.keepPolicy` and
+  `options.keepPrefer`.
 - `npm run release:check` (`scripts/release-check.js`): verifies the two version
   strings agree, the CHANGELOG has a section for the version, the tarball npm
   would publish contains the CLI and the licence but not the tests, no runtime
@@ -24,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.gitattributes` forcing LF for all text files, so a Windows checkout cannot
   silently rewrite the tree to CRLF.
 - Maintainer tooling under `scripts/`, documented in `scripts/README.md`.
+- Test suite is now 118 tests across 10 files, green on Node 18.17, 20.11 and 24.
 
 ### Changed
 
@@ -67,9 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--fail-on-dupes <size>` for CI gates, plus documented exit codes.
 - Programmatic API (`audit`, `walk`, `findDuplicates`, renderers) exported from
   `src/index.js`.
-- Test suite on `node:test` (105 tests, ~430 assertions across 9 files), an
-  end-to-end smoke test and a GitHub Actions matrix for Linux, macOS and
-  Windows on Node 18/20/22/24.
+- Test suite on `node:test` (98 tests at the time), an end-to-end smoke test and
+  a GitHub Actions matrix for Linux, macOS and Windows on Node 18/20/22/24.
 
-[Unreleased]: https://github.com/d20260825613-hub/spacehog/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/d20260825613-hub/spacehog/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/d20260825613-hub/spacehog/releases/tag/v0.2.0
 [0.1.0]: https://github.com/d20260825613-hub/spacehog/releases/tag/v0.1.0

@@ -6,6 +6,7 @@ import {
   formatDuration,
   toPosix,
 } from './util.js';
+import { explainKeep } from './keep.js';
 
 const RULE_WIDTH = 72;
 
@@ -190,14 +191,36 @@ function renderDuplicates(out, report, c, now) {
   }
   out.push(c.dim(`  ${title}`));
   out.push(c.dim(`  paths below are relative to ${toPosix(report.root)}`));
+  if (groups.some((group) => group.keep)) {
+    out.push(
+      c.dim(
+        `  ${c.green('keep')} marks the copy to keep — ${explainKeep(
+          report.options?.keepPolicy ?? groups[0].keepPolicy ?? 'newest',
+          report.options?.keepPrefer ?? null,
+        )}`,
+      ),
+    );
+  }
   groups.forEach((group, index) => {
     const marker = index === 0 ? c.red('●') : c.gray('○');
     out.push(
       `  ${marker} ${c.bold(formatBytes(group.size))} × ${group.copies} ${c.gray(`→ save ${formatBytes(group.wastedBytes)}`)}`,
     );
     out.push(c.dim(`     ${group.algorithm}:${String(group.hash).slice(0, 12)}`));
+    const keeperPath = group.keep?.path ?? null;
     for (const file of group.files) {
-      out.push(`     ${c.dim('·')} ${file.display ?? toPosix(file.path)} ${c.gray(`(${formatAge(file.mtimeMs, now)})`)}`);
+      const isKeeper = keeperPath !== null && file.path === keeperPath;
+      // The keeper is annotated in place, so the relative paths stay aligned
+      // and a reader can act on the group without cross-referencing anything.
+      const tag = isKeeper ? ` ${c.green('← keep')}` : '';
+      out.push(
+        `     ${isKeeper ? c.green('·') : c.dim('·')} ${file.display ?? toPosix(file.path)}${tag} ${c.gray(
+          `(${formatAge(file.mtimeMs, now)})`,
+        )}`,
+      );
+    }
+    if (keeperPath === null && group.files.length > 1) {
+      out.push(c.dim('     (no keep suggestion for this group)'));
     }
   });
   if ((report.hardlinkSavedBytes ?? 0) > 0) {
@@ -311,7 +334,11 @@ export function renderMarkdown(report, { now = Date.now() } = {}) {
     for (const [index, group] of report.duplicateGroups.slice(0, 10).entries()) {
       out.push(`<details><summary>Group ${index + 1} — ${formatBytes(group.size)} × ${group.copies}</summary>`);
       out.push('');
-      for (const file of group.files) out.push(`- \`${shown(file)}\``);
+      const keeperPath = group.keep?.path ?? null;
+      for (const file of group.files) {
+        const isKeeper = keeperPath !== null && file.path === keeperPath;
+        out.push(`- \`${shown(file)}\`${isKeeper ? ' ← **keep this one**' : ''}`);
+      }
       out.push('');
       out.push('</details>');
       out.push('');

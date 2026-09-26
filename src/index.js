@@ -15,6 +15,7 @@ export {
   hashHead,
   mapPool,
 } from './hash.js';
+export { KEEP_POLICIES, explainKeep, isKeepPolicy, rankKeep, suggestKeep } from './keep.js';
 export {
   DEFAULT_JUNK_EXTENSIONS,
   DEFAULT_JUNK_NAMES,
