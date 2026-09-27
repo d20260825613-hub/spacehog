@@ -6,14 +6,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+130 tests across 11 files (up from 122 across 10), green on Node 18.17, 20.11
+and 24; `npm run smoke` and `npm run verify:package` pass end to end.
+
 ### Added
 
+- **Graphical front end** (`src/gui/`, not yet wired into the npm package): one
+  Windows binary that opens a local page on `127.0.0.1` when started with no
+  arguments and behaves exactly like the CLI otherwise. The page posts to three
+  endpoints — the bundled page, `/api/version` and `/api/run`, which streams the
+  scan back as NDJSON and ends with the child's real exit code. The folder picker
+  uses PowerShell's `FolderBrowserDialog`, so no UI dependency was added.
+- **SEA binaries** (`scripts/build-exe.js`): esbuild bundles the source into one
+  CommonJS file and `postject` injects it into a copy of the Node runtime. Windows
+  gets a GUI+CLI binary, Linux a CLI-only one. Checksums land next to the
+  artifacts. macOS is deliberately not built — an unsigned SEA binary is killed by
+  Gatekeeper, which is worse than `npx`.
+- **Exit code `3`** for `--fail-on-dupes`: reaching the threshold now has its own
+  code (see *Changed* — this is a breaking change for CI scripts).
+- `test/gui.test.js`: starts the real server on a loopback port and drives every
+  endpoint over HTTP, including a full scan streamed back as NDJSON. The bug below
+  is only visible to a test that does that.
+- `test/version.test.js` now also checks that `SHA256SUMS.txt` and the per-binary
+  `.sha256` files agree with the binaries they describe, whenever those binaries
+  are present. The manifest had already drifted once without anyone noticing.
+- `src/gui/cli-child.js`: the CLI entry the GUI spawns when running from source.
 - `npm run verify:package` (`scripts/verify-package.js`): packs the real tarball,
   installs it into a throwaway prefix and runs the *installed* command —
   `--version`, a real audit, `--json`, `--keep`, `--fail-on-dupes`, `--help` and
   a dynamic import of the library entry. Nothing previously exercised the path a
   user actually takes: `npm test` runs the source tree, and `release-check.js`
   only inspects the file list. Now runs on Linux, macOS and Windows in CI.
+
+### Changed
+
+- **Exit code `2` no longer means "the `--fail-on-dupes` threshold was reached"**;
+  that case is `3` now. `2` keeps its other meaning — the command could never have
+  run, because the arguments were wrong or a path does not exist. One code for
+  both left a CI script unable to tell a typo from a real finding, and unable to
+  decide whether retrying could ever help. `speck` reserves `3` the same way, so
+  the family stays consistent. `README.md`, `--help` and the smoke test were
+  updated with the code.
+- Documented exit codes corrected: `README.md` had `1` and `2` swapped, claiming
+  code `1` covered invalid arguments. Invalid arguments and missing paths are `2`;
+  `1` is a scan that started and then failed.
+
+### Fixed
+
+- **`POST /api/run` returned `200` with a bare `{"exit":1}` and not one line of
+  output.** The handler watched `req` for "the client went away", but Node emits
+  `'close'` on `req` as soon as the request body has been consumed — which happens
+  before the child process writes its first byte — so every scan was killed
+  immediately. The listener moved to `res`, which closes when the socket actually
+  goes away or after `res.end()`; a relay guard stops output from being written to
+  a dead response.
+- **The GUI could not run its own scans from source.** It spawned
+  `process.execPath` with `['--cli', ...args]`, which under `node src/gui/main.js`
+  means `node --cli .` — node itself rejects `--cli`, and the scan died with exit
+  code 9. The spawn target is now derived from how the process was started: a
+  packaged binary is its own executable, while a source run gets node plus a
+  dedicated CLI entry point. A test file is never respawned as a scan.
+- `scripts/smoke.js` expected a missing path to exit `1`; that has been `2` since
+  the exit codes were split out, so the smoke test could not have passed.
+- `tools/sea/` (about 287 MB of blobs, bundles and binaries) is now git-ignored.
+  `git check-ignore` said it was not, so `git add -A` would have committed the
+  build output. The build *inputs* (`bundle-*.cjs`, `entry-*.mjs`, `sea-*.json`)
+  and the checksums stay tracked on purpose.
+- `SHA256SUMS.txt` was wrong in two ways: it recorded a hash for `spacehog.exe`
+  that matched no build, and it omitted `spacehog-cli` altogether, so two of the
+  three artifacts had no entry in the combined manifest. It is regenerated from
+  the binaries now, and `scripts/upload-assets.js` compares it with each
+  `.sha256` sidecar before uploading. That script also published the superseded
+  `spacehog` Linux build instead of the current `spacehog-cli`; the asset list
+  names the artifact the build script actually produces.
 
 ## [0.2.0] - 2026-09-26
 
@@ -43,7 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.gitattributes` forcing LF for all text files, so a Windows checkout cannot
   silently rewrite the tree to CRLF.
 - Maintainer tooling under `scripts/`, documented in `scripts/README.md`.
-- Test suite is now 118 tests across 10 files, green on Node 18.17, 20.11 and 24.
+- Test suite grew to 122 tests across 10 files, green on Node 18.17, 20.11 and 24.
 
 ### Changed
 
