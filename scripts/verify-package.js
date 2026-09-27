@@ -53,12 +53,26 @@ const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'spacehog-pkg-'));
 const prefix = path.join(sandbox, 'prefix');
 const cache = path.join(sandbox, 'npm-cache');
 
-/** The installed CLI entry, whatever npm decided to name it on this platform. */
+/**
+ * The installed CLI entry, whatever npm decided to name it on this platform.
+ *
+ * `npm install --global --prefix <p>` puts the command in a different place per
+ * platform, and the first version of this list only knew the Windows layout:
+ *
+ *   Windows  <prefix>\spacehog.cmd          (and a bare `spacehog` shell script)
+ *   POSIX    <prefix>/bin/spacehog          (a symlink into node_modules)
+ *
+ * so the Linux job failed with "the installed package exposes a spacehog
+ * command" even though the install had succeeded. The symlink is preferred over
+ * the package's own `bin/spacehog.js` because it is what a user actually runs,
+ * and it only exists if npm linked the `bin` field correctly.
+ */
 function installedBin() {
   const candidates = [
-    path.join(prefix, 'spacehog.cmd'),
-    path.join(prefix, 'spacehog'),
-    path.join(prefix, 'node_modules', 'spacehog', 'bin', 'spacehog.js'),
+    path.join(prefix, 'bin', 'spacehog'), // POSIX global install
+    path.join(prefix, 'spacehog.cmd'), // Windows global install
+    path.join(prefix, 'spacehog'), // Windows (Git Bash style) global install
+    path.join(prefix, 'node_modules', 'spacehog', 'bin', 'spacehog.js'), // the file itself
   ];
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
@@ -92,7 +106,11 @@ try {
 
   // 3. the binary is where the package says it is ----------------------------
   const bin = installedBin();
-  check('the installed package exposes a spacehog command', bin !== null, `looked in ${prefix}`);
+  check(
+    'the installed package exposes a spacehog command',
+    bin !== null,
+    `no ${path.join(prefix, 'bin', 'spacehog')} and no ${path.join(prefix, 'spacehog.cmd')}`,
+  );
   if (!bin) throw new Error('no installed binary to run');
 
   const version = run(bin, ['--version']);
