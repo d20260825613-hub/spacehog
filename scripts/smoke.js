@@ -76,10 +76,13 @@ try {
   check('markdown starts with a heading', markdown.stdout.startsWith('# spacehog report'));
 
   const failing = await runCli([root, '--json', '--fail-on-dupes', '10kb']);
-  check('--fail-on-dupes exits 2', failing.code === 2, `status ${failing.code}`);
+  check('--fail-on-dupes exits 3', failing.code === 3, `status ${failing.code}`);
 
   const missing = await runCli([path.join(root, 'nope')]);
-  check('missing path exits 1', missing.code === 1, `status ${missing.code}`);
+  check('a path that does not exist exits 2', missing.code === 2, `status ${missing.code}`);
+
+  const typo = await runCli(['--nonsense']);
+  check('a bad option exits 2', typo.code === 2, `status ${typo.code}`);
 
   const help = await runCli(['--help']);
   check('--help exits 0', help.code === 0);

@@ -93,12 +93,36 @@ Examples
 
 Exit codes
   0  report produced
-  1  invalid arguments or scan failure
-  2  --fail-on-dupes threshold reached
+  1  a scan failed for a reason other than the arguments
+  2  invalid arguments, or a path that does not exist
+  3  the --fail-on-dupes threshold was reached (the scan itself succeeded)
 `;
 
-function fail(message) {
-  return { ok: false, message };
+/**
+ * Long option names, for the "did you mean" suggestion. Derived from SPEC rather
+ * than listed a second time, so the two can never disagree.
+ */
+export const OPTION_NAMES = Object.keys(SPEC);
+
+/**
+ * Report a parse failure.
+ *
+ * `hint` is the actionable half: the corrected option, or an example of the
+ * value the parser expected. An error that says only what went wrong makes the
+ * user go and read the help text; one that says what to type instead does not.
+ */
+function fail(message, hint = null) {
+  return { ok: false, message, hint };
+}
+
+/** "unknown option" with the closest real option attached. */
+function failUnknownOption(option) {
+  const bare = String(option).replace(/^-+/, '');
+  const suggestion = nearestName(bare, OPTION_NAMES);
+  return fail(
+    `unknown option: ${option}`,
+    suggestion ? `did you mean --${suggestion}?` : 'run with --help to see every option',
+  );
 }
 
 function charFor(name) {

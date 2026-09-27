@@ -9,7 +9,7 @@ part of the CLI itself — `bin/spacehog.js` and `src/` are the shipped product.
 | --- | --- |
 | `run-tests.js` | The `npm test` entry point. `node --test` discovers files differently on Node 18-20 than on 21+, and the two obvious forms are mutually exclusive, so this passes the explicit list of top-level `test/*.test.js` files — the only form that means the same thing on 18, 20, 22 and 24. |
 | `test-files.js` | Runs each test file in its own plain node process. Use it when `node --test` is blocked by a sandbox that denies child-process pipes (`spawn EPERM`). |
-| `smoke.js` | End-to-end checks against the real CLI: text/JSON/Markdown modes and exit codes 0/1/2. |
+| `smoke.js` | End-to-end checks against the real CLI: text/JSON/Markdown modes and exit codes 0/1/2/3. |
 | `verify-package.js` | `npm run verify:package`. Packs the real tarball, installs it into a throwaway `--prefix`, and runs the *installed* binary: `--version`, a real audit, `--json`, `--keep`, `--fail-on-dupes`, `--help`, and a dynamic import of the library entry. The only check that covers the path a user actually takes. Runs on all three OSes in CI, because bin resolution and executable bits are platform-specific. |
 
 ## Releasing

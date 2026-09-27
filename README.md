@@ -125,7 +125,7 @@ From source:
 git clone https://github.com/d20260825613-hub/spacehog.git
 cd spacehog
 node bin/spacehog.js .        # no install step, no dependencies
-npm test                      # 118 tests across 10 files
+npm test                      # 130 tests across 11 files
 npm run smoke                 # end-to-end CLI check
 ```
 
@@ -161,7 +161,7 @@ is scanned.
 | `--pretty` | off | Indent the JSON |
 | `--progress` / `--no-progress` | auto | Force or silence the progress line |
 | `--color` / `--no-color` | auto | Force or disable ANSI colors |
-| `--fail-on-dupes <size>` | – | Exit `2` when duplicate waste reaches `<size>` |
+| `--fail-on-dupes <size>` | – | Exit `3` when duplicate waste reaches `<size>` |
 | `-h, --help` / `-v, --version` | – | Help / version |
 
 `NO_COLOR` and `FORCE_COLOR` are honoured, as is `TERM=dumb`.
@@ -185,8 +185,13 @@ spacehog . --fail-on-dupes 500mb          # CI gate: fail when 500 MB is duplica
 | Code | Meaning |
 | --- | --- |
 | `0` | Report produced (even when duplicates were found) |
-| `1` | Invalid arguments, or a path could not be scanned at all |
-| `2` | `--fail-on-dupes` threshold reached |
+| `1` | A scan failed for a reason other than the arguments |
+| `2` | Invalid arguments, or a path that does not exist |
+| `3` | `--fail-on-dupes` threshold reached (the scan itself succeeded) |
+
+Code `2` means the command could never have run; code `3` is a verdict from a scan
+that worked. A CI script can therefore tell a typo from a real finding instead of
+retrying something that will never succeed.
 
 ## What the report tells you
 
@@ -259,7 +264,7 @@ spacehog/
 ├── src/
 │   ├── index.js             # public API surface — import from here, not from internals
 │   ├── keep.js              # "which copy should I keep?" policies (pure functions)
-│   ├── cli.js               # wires args -> audit -> renderer; owns exit codes 0/1/2,
+│   ├── cli.js               # wires args -> audit -> renderer; owns exit codes 0/1/2/3,
 │   │                        #   progress line, SIGINT handling, --exclude post-filter
 │   ├── args.js              # zero-dep argument parser, help text, glob -> RegExp
 │   ├── audit.js             # one full scan -> one report object (the orchestrator)
@@ -267,9 +272,14 @@ spacehog/
 │   ├── hash.js              # streaming hashes, bounded concurrency pool, on-disk cache
 │   ├── detectors.js         # duplicates, large files, junk, sparse files, empty dirs
 │   ├── reporter.js          # text / Markdown / JSON renderers + the severity verdict
-│   └── util.js              # byte formatting, size parsing, path and time helpers
+│   ├── util.js              # byte formatting, size parsing, path and time helpers
+│   └── gui/
+│       ├── main.js          # GUI build entry: one binary, `--cli` switches to the CLI
+│       ├── server.js        # loopback HTTP host: the page, /api/version, /api/run
+│       ├── page.js          # the whole front end, as one inline-HTML string
+│       └── cli-child.js     # CLI-only entry the GUI spawns when run from source
 ├── test/
-│   ├── *.test.js            # 10 suites, 118 tests (node:test, no test framework)
+│   ├── *.test.js            # 11 suites, 130 tests (node:test, no test framework)
 │   ├── fixtures.js          # one deterministic tree reused by several suites
 │   └── helpers/
 │       ├── tmp.js           # temp-dir and tree builders, auto-cleanup

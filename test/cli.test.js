@@ -134,16 +134,30 @@ test('run honours --top and --min-size', async () => {
   assert.equal(report.options.minSize, 1024);
 });
 
-test('run exits 2 when --fail-on-dupes is reached, and 0 when it is not', async () => {
+test('run exits 3 when --fail-on-dupes is reached, and 0 when it is not', async () => {
   const root = await makeFixture();
   const reached = await runCli([root, '--json', '--fail-on-dupes', '1kb']);
-  assert.equal(reached.code, 2);
+  assert.equal(reached.code, 3, 'hitting the threshold is a verdict, not a usage error');
   assert.match(reached.stderr, /reached the --fail-on-dupes threshold/);
   assert.ok(JSON.parse(reached.stdout), 'the report is still produced');
 
   const notReached = await runCli([root, '--json', '--fail-on-dupes', '1gb']);
   assert.equal(notReached.code, 0);
   assert.equal(notReached.stderr.includes('threshold'), false);
+});
+
+test('exit codes keep "bad usage" apart from "threshold reached"', async () => {
+  const root = await makeFixture();
+  const badArgs = await runCli(['--nonsense']);
+  const missingPath = await runCli([path.join('no', 'such', 'directory')]);
+  const threshold = await runCli([root, '--json', '--fail-on-dupes', '1kb']);
+
+  assert.equal(badArgs.code, 2);
+  assert.equal(missingPath.code, 2);
+  assert.equal(threshold.code, 3);
+  assert.notEqual(threshold.code, badArgs.code, 'a CI script must be able to tell them apart');
+  // A finding is a successful scan: the report is intact and nothing failed.
+  assert.equal(JSON.parse(threshold.stdout).tool.name, 'spacehog');
 });
 
 test('run skips duplicate detection with --no-duplicates', async () => {

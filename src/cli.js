@@ -135,7 +135,11 @@ export async function run(argv, io = {}) {
   if (threshold !== null && threshold !== undefined) {
     const wasted = reports.reduce((acc, report) => acc + (report.duplicates?.wastedBytes ?? 0), 0);
     if (wasted >= threshold) {
-      exitCode = 2;
+      // 3, not 2: hitting the threshold is a *verdict* from a scan that worked,
+      // while 2 means the command could never have run (bad arguments). Sharing
+      // one code for both left a CI script unable to tell a typo from a real
+      // finding. speck reserves 3 the same way, so the family stays consistent.
+      exitCode = 3;
       stderr.write(
         `spacehog: duplicate waste ${formatBytes(wasted)} reached the --fail-on-dupes threshold ${formatBytes(threshold)}\n`,
       );

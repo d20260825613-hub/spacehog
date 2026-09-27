@@ -138,7 +138,7 @@ try {
 
   // 5. exit codes are wired up ----------------------------------------------
   const threshold = run(bin, [tree, '--json', '--no-cache', '--no-progress', '--fail-on-dupes', '1kb']);
-  check('--fail-on-dupes still exits 2 when installed', threshold.status === 2, `status ${threshold.status}`);
+  check('--fail-on-dupes still exits 3 when installed', threshold.status === 3, `status ${threshold.status}`);
 
   const help = run(bin, ['--help']);
   check('--help works from the installed copy', help.status === 0 && /Usage/.test(help.stdout));
