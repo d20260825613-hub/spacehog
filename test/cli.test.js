@@ -49,17 +49,50 @@ test('run prints the version for --version and exits 0', async () => {
   assert.match(stdout.trim(), /^\d+\.\d+\.\d+$/);
 });
 
-test('run rejects bad arguments with exit code 1 and a hint', async () => {
+test('run rejects bad arguments with exit code 2 and a suggestion', async () => {
   const { code, stdout, stderr } = await runCli(['--nonsense']);
-  assert.equal(code, 1);
+  assert.equal(code, 2, 'arguments being wrong is code 2, not 1');
   assert.match(stderr, /unknown option: --nonsense/);
-  assert.match(stderr, /spacehog --help/);
+  assert.match(stderr, /run with --help/);
   assert.equal(stdout, '');
+});
+
+test('a mistyped option is matched to the closest real one', async () => {
+  const cases = [
+    ['--colr', '--color'],
+    ['--hashh', '--hash'],
+    ['--ignore-dir', '--ignore-dirs'],
+    ['--follow-symlink', '--follow-symlinks'],
+  ];
+  for (const [typo, expected] of cases) {
+    const { code, stderr } = await runCli([typo]);
+    assert.equal(code, 2, `${typo} should be an argument error`);
+    assert.match(stderr, new RegExp(`did you mean ${expected}\\?`), `wrong suggestion for ${typo}: ${stderr.trim()}`);
+  }
+});
+
+test('an option with no value says so instead of reading undefined', async () => {
+  const { code, stderr } = await runCli(['--top']);
+  assert.equal(code, 2);
+  assert.match(stderr, /--top requires a value/);
+  assert.match(stderr, /for example --top <value>/);
+});
+
+test('a bad choice names the closest allowed value', async () => {
+  const { code, stderr } = await runCli(['--keep', 'oldst', '.']);
+  assert.equal(code, 2);
+  assert.match(stderr, /did you mean oldest\?/);
+});
+
+test('a usage error never prints a stack trace', async () => {
+  const { stderr } = await runCli(['--nonsense']);
+  assert.equal(/at .*\(.*:\d+:\d+\)/.test(stderr), false, 'stack frames leaked into a friendly error');
+  assert.equal(stderr.split('\n').filter((line) => line.trim()).length, 2, 'message plus hint, nothing else');
 });
 
 test('run fails cleanly when the path does not exist', async () => {
   const { code, stderr } = await runCli([path.join('no', 'such', 'directory')]);
-  assert.equal(code, 1);
+  assert.equal(code, 2, 'a path that does not exist is an argument problem');
   assert.match(stderr, /cannot access/);
 });
 

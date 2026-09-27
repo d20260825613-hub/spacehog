@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { buildExcludeFilter, parseArgs, USAGE } from './args.js';
 import { audit } from './audit.js';
+import { UsageError, formatError } from './cli-kit.js';
 import { suggestKeep } from './keep.js';
 import { renderJson, renderMarkdown, renderText, shouldUseColor } from './reporter.js';
 import { formatBytes, parseSize, toPosix, VERSION } from './util.js';
@@ -37,9 +38,11 @@ export async function run(argv, io = {}) {
 
   const parsed = parseArgs(argv);
   if (!parsed.ok) {
-    stderr.write(`spacehog: ${parsed.message}\n`);
-    stderr.write('Run "spacehog --help" for usage.\n');
-    return 1;
+    // 2 means the arguments were wrong, 1 means the operation failed. A caller
+    // can then tell "I typed it badly" from "the scan hit a problem" instead of
+    // retrying something that can never work.
+    stderr.write(formatError(new UsageError(parsed.message, { hint: parsed.hint }), { tool: 'spacehog' }));
+    return 2;
   }
   const { values, paths } = parsed;
 
@@ -55,8 +58,20 @@ export async function run(argv, io = {}) {
   const roots = paths.map((p) => path.resolve(p));
   const missing = roots.filter((root) => !safeExists(root));
   if (missing.length > 0) {
-    for (const root of missing) stderr.write(`spacehog: cannot access ${root}\n`);
-    return 1;
+    // A path that cannot be reached from a working directory is an argument
+    // problem: the user named something that is not there. Code 1 is reserved
+    // for a scan that started and then failed.
+    for (const root of missing) {
+      stderr.write(
+        formatError(
+          new UsageError(`cannot access ${root}`, {
+            hint: 'check the path, or run with --help for usage',
+          }),
+          { tool: 'spacehog' },
+        ),
+      );
+    }
+    return 2;
   }
 
   const useColor = shouldUseColor({ flag: values.color, stream: stdout, env });

@@ -1,3 +1,4 @@
+import { nearestName } from './cli-kit.js';
 import { HASH_ALGORITHMS, isSupportedAlgorithm } from './hash.js';
 import { KEEP_POLICIES } from './keep.js';
 import { parseSize } from './util.js';
@@ -22,6 +23,7 @@ const SPEC = {
   'ignore-dirs': { type: 'boolean', default: true, negatable: true },
   'follow-symlinks': { type: 'boolean', default: false, negatable: true },
   'no-cache': { type: 'boolean', default: false },
+  debug: { type: 'boolean', default: false },
   top: { type: 'number', short: 'n', default: 15, min: 0 },
   'min-size': { type: 'size', short: 's', default: 0 },
   'max-size': { type: 'size', short: 'm', default: null },
@@ -75,7 +77,8 @@ Options
       --markdown           Markdown report (good for issues and PRs)
       --pretty             indent JSON output
       --progress           force the progress line; --no-progress silences it
-      --fail-on-dupes <size>  exit 2 when duplicate waste reaches size (for CI)
+      --debug              print stack traces for unexpected errors
+      --fail-on-dupes <size>  exit 3 when duplicate waste reaches size (for CI)
       --color / --no-color    force or disable ANSI colors
   -h, --help               show this help
   -v, --version            print the version
@@ -143,14 +146,14 @@ export function parseArgs(argv) {
         continue;
       }
       name = body;
-      if (!SPEC[name]) return fail(`unknown option: --${name}`);
+      if (!SPEC[name]) return failUnknownOption(`--${name}`);
     } else {
       // Short flags, possibly bundled (-vh) or glued to a value (-n20).
       const chars = [...token.slice(1)];
       let pendingValue = null;
       for (let i = 0; i < chars.length; i += 1) {
         const mapped = ALIASES.get(chars[i]);
-        if (!mapped) return fail(`unknown option: -${chars[i]}`);
+        if (!mapped) return failUnknownOption(`-${chars[i]}`);
         const def = SPEC[mapped];
         const rest = chars.slice(i + 1).join('');
         if (def.type === 'boolean') {
@@ -167,7 +170,12 @@ export function parseArgs(argv) {
         break;
       }
       if (pendingValue !== null) {
-        if (args.length === 0) return fail(`option -${charFor(pendingValue)} (--${pendingValue}) requires a value`);
+        if (args.length === 0) {
+          return fail(
+            `option -${charFor(pendingValue)} (--${pendingValue}) requires a value`,
+            `for example -${charFor(pendingValue)} <value>`,
+          );
+        }
         name = pendingValue;
         inline = args.shift();
         inlineProvided = true;
@@ -187,7 +195,9 @@ export function parseArgs(argv) {
     }
 
     if (!inlineProvided) {
-      if (args.length === 0) return fail(`option --${name} requires a value`);
+      if (args.length === 0) {
+        return fail(`option --${name} requires a value`, `for example --${name} <value>`);
+      }
       inline = args.shift();
     }
     if (def.repeat) {
@@ -201,7 +211,10 @@ export function parseArgs(argv) {
   if (paths.length === 0) paths.push('.');
 
   if (!isSupportedAlgorithm(values.hash)) {
-    return fail(`unsupported hash algorithm: ${values.hash} (expected ${HASH_ALGORITHMS.join(', ')})`);
+    return fail(
+      `unsupported hash algorithm: ${values.hash} (expected ${HASH_ALGORITHMS.join(', ')})`,
+      'md5 is the fastest and is the default; sha256 costs a little more',
+    );
   }
 
   return { ok: true, values, paths };
@@ -212,21 +225,35 @@ function applyValue(values, name, def, raw) {
     case 'string': {
       const value = String(raw);
       if (def.choices && !def.choices.includes(value.toLowerCase())) {
-        return fail(`--${name} must be one of: ${def.choices.join(', ')}`);
+        // Suggest the closest allowed value rather than only listing them all.
+        const suggestion = nearestName(value.toLowerCase(), def.choices);
+        return fail(
+          `--${name} must be one of: ${def.choices.join(', ')}`,
+          suggestion ? `did you mean ${suggestion}?` : null,
+        );
       }
       values[name] = def.choices ? value.toLowerCase() : value;
       return null;
     }
     case 'number': {
       const value = Number(raw);
-      if (!Number.isFinite(value)) return fail(`--${name} expects a number, got "${raw}"`);
-      if (def.min !== undefined && value < def.min) return fail(`--${name} must be >= ${def.min}`);
+      if (!Number.isFinite(value)) {
+        return fail(`--${name} expects a number, got "${raw}"`, `for example --${name} ${def.min ?? 1}`);
+      }
+      if (def.min !== undefined && value < def.min) {
+        return fail(`--${name} must be >= ${def.min}`, `the smallest accepted value is ${def.min}`);
+      }
       values[name] = Math.floor(value);
       return null;
     }
     case 'size': {
       const value = parseSize(raw);
-      if (value === null) return fail(`--${name} expects a size such as 10mb, got "${raw}"`);
+      if (value === null) {
+        return fail(
+          `--${name} expects a size such as 10mb, got "${raw}"`,
+          'sizes accept kb, mb, gb or a plain number of bytes',
+        );
+      }
       values[name] = value;
       return null;
     }
