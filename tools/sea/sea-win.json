@@ -1,0 +1,7 @@
+{
+  "main": "tools/sea/bundle-win.cjs",
+  "output": "tools/sea/spacehog-win.blob",
+  "disableExperimentalSEAWarning": true,
+  "useSnapshot": false,
+  "useCodeCache": false
+}

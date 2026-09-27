@@ -20,3 +20,16 @@ desktop.ini
 
 coverage/
 .nyc_output/
+
+# SEA build output: several hundred MB of blobs, bundles and binaries that are
+# produced by `scripts/build-exe.js` and re-created on demand. Build *inputs*
+# (bundle-*.cjs, entry-*.mjs, sea-*.json) and the checksum files stay tracked on
+# purpose, so a released binary can be reproduced and verified from the repo.
+tools/sea/*
+!tools/sea/*.cjs
+!tools/sea/*.mjs
+!tools/sea/*.json
+!tools/sea/*.sha256
+!tools/sea/SHA256SUMS.txt
+
+dist/

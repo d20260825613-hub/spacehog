@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>spacehog - install</title>
+<style>
+  :root {
+    --bg: #14161a;
+    --panel: #1c1f26;
+    --line: #2b3038;
+    --ink: #e6e8ec;
+    --dim: #98a0ad;
+    --accent: #5ec27d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px 80px;
+  }
+  main { width: 100%; max-width: 720px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.2px; }
+  .sub { color: var(--dim); margin: 0 0 28px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  h2 .tag {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--bg);
+    background: var(--accent);
+    border-radius: 4px;
+    padding: 2px 7px;
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+  h2 .tag.alt { background: #7aa2f7; }
+  h2 .tag.soon { background: #565d69; color: var(--ink); }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ol, ul { margin: 0 0 12px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  code, pre {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 13px;
+  }
+  code { background: #23272f; padding: 1px 5px; border-radius: 4px; }
+  pre {
+    background: #101216;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 0 0 12px;
+  }
+  a.btn {
+    display: inline-block;
+    background: var(--accent);
+    color: #10130f;
+    font-weight: 650;
+    text-decoration: none;
+    padding: 9px 18px;
+    border-radius: 7px;
+    margin-right: 8px;
+  }
+  a.btn.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    font-weight: 500;
+  }
+  .note {
+    border-left: 3px solid #d9a13b;
+    background: #241f14;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    color: #e9dcc2;
+    font-size: 14px;
+  }
+  .k {
+    display: inline-block;
+    min-width: 20px;
+    text-align: center;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    background: #23272f;
+    font-size: 12px;
+  }
+  footer { color: var(--dim); font-size: 13px; margin-top: 26px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>spacehog</h1>
+  <p class="sub">Find out what is eating your disk. Duplicates, big files, junk, empty folders.</p>
+
+  <div class="card">
+    <h2>Windows<span class="tag">recommended</span></h2>
+    <p>One file, no installer, no Node needed. Download it, then run it from a terminal:</p>
+    <p>
+      <a class="btn" href="https://github.com/d20260825613-hub/spacehog/releases/latest/download/spacehog.exe">Download spacehog.exe</a>
+      <a class="btn ghost" href="https://github.com/d20260825613-hub/spacehog/releases/latest/download/SHA256SUMS.txt">Checksums</a>
+    </p>
+    <p>Then point it at a folder. Nothing is ever deleted, so it is safe to run anywhere:</p>
+    <pre>spacehog.exe C:\Users\you\Pictures</pre>
+    <div class="note">
+      Windows SmartScreen will warn you the first time, because the binary is not code-signed
+      (a certificate costs money). Choose <strong>More info</strong>, then <strong>Run anyway</strong>.
+      You can also right-click the file, pick Properties, and tick Unblock.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Linux<span class="tag alt">binary</span></h2>
+    <p>A static single-file binary. No Node, no packages to install:</p>
+    <pre>curl -L -o spacehog https://github.com/d20260825613-hub/spacehog/releases/latest/download/spacehog
+chmod +x spacehog
+./spacehog ~/Pictures</pre>
+    <p>It is unsigned and untested on every distribution. If your shell refuses to run it, the npm route below always works.</p>
+  </div>
+
+  <div class="card">
+    <h2>Any platform, via npm<span class="tag soon">needs Node 18+</span></h2>
+    <pre>npx spacehog .</pre>
+    <p>Or install it once:</p>
+    <pre>npm install -g spacehog
+spacehog ~/Downloads</pre>
+  </div>
+
+  <div class="card">
+    <h2>First run, three useful commands</h2>
+    <ol>
+      <li><pre>spacehog .</pre>Everything in the current folder, biggest items first.</li>
+      <li><pre>spacehog . --keep oldest</pre>The same, but every duplicate group tells you which copy to keep.</li>
+      <li><pre>spacehog . --json &gt; report.json</pre>Machine-readable output for a script or a dashboard.</li>
+    </ol>
+    <p>Press <span class="k">Ctrl</span> <span class="k">C</span> to stop a long scan. Nothing is written except a small hash cache, and <code>--no-cache</code> turns even that off.</p>
+  </div>
+
+  <footer>
+    spacehog is MIT licensed. Report bugs at
+    <a href="https://github.com/d20260825613-hub/spacehog/issues">github.com/d20260825613-hub/spacehog/issues</a>.
+  </footer>
+</main>
+</body>
+</html>

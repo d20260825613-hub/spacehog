@@ -1,0 +1,7 @@
+{
+  "main": "tools/sea/bundle-linux.cjs",
+  "output": "tools/sea/spacehog-linux.blob",
+  "disableExperimentalSEAWarning": true,
+  "useSnapshot": false,
+  "useCodeCache": false
+}

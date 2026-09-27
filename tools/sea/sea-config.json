@@ -1,0 +1,7 @@
+{
+  "main": "tools/sea/spacehog.cjs",
+  "output": "tools/sea/spacehog.blob",
+  "disableExperimentalSEAWarning": true,
+  "useSnapshot": false,
+  "useCodeCache": false
+}
