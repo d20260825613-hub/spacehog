@@ -1,5 +1,56 @@
 # spacehog 项目开发快照
 
+> ## ⚠️ 状态更新（2026-09-27，本文写完之后）
+>
+> 第 3 版记录的是**快照时刻**的状态。此后工作区里的全部改动已提交、推送并发布，因此下文
+> "工作区状态""待办"两节描述的是**当时**的事实，不再是当前状态。当前事实：
+>
+> | 项目 | 值 |
+> |---|---|
+> | 分支 / HEAD | `main` / `09b5f79`，与 `origin/main` 同步 |
+> | 工作区 | 干净（`git status --porcelain -uall` 无输出） |
+> | 测试 | 130 / 130 通过；`smoke` 16 项、`verify:package` 12 项全绿 |
+> | Release | `v0.2.0` 现有 3 个资产：`spacehog.exe`、`spacehog-cli`、`SHA256SUMS.txt` |
+>
+> 5 个提交（`0dc94d7` → `09b5f79`）：
+>
+> | commit | 内容 |
+> |---|---|
+> | `8411292` | feat(cli)：拼写建议、可操作报错、缺失的信号处理器 |
+> | `617f83a` | fix(cli)：退出码 3 独立出来（原待办 6） |
+> | `76f0089` | feat(gui)：本地页面 + 修掉 `/api/run` 抢杀子进程（原待办 1、2） |
+> | `697dbf7` | feat(release)：SEA 构建、校验和门禁、CI package job（原待办 5、12） |
+> | `09b5f79` | docs：CHANGELOG Unreleased 汇总 + 本文归档 |
+>
+> **原待办 3、4、14（本机 GitHub 通道）已解决，根因与做法如下。** 这台机器访问 GitHub
+> 有两个独立故障，快照第 3 版只查到了第二个：
+>
+> 1. **hosts 文件把 github.com 全系域名指向 `127.0.0.1`**（`C:\Windows\System32\drivers\etc\hosts`
+>    里 30 余条），所以 DNS 从未解析到真实 IP。Clash 的 HTTP 代理会**自己解析**目标域名，
+>    因此走代理即可绕过 hosts。
+> 2. 除此之外**本机没有任何直连外网能力**（实测 `1.1.1.1:443`、`8.8.8.8:443` 均超时），
+>    唯一出口是 `127.0.0.1:7897`。
+> 3. 原 keyring 里的 `gho_` 令牌**已被吊销**（API 返回 401，`gh auth status` 报 invalid）。
+>    已用 OAuth device flow 重新签发，含 `repo, workflow, read:org`。
+>
+> 可用配方（已固化为 `D:\dsh\_tools\git-spacehog.ps1`，直接 `.\git-spacehog.ps1 push origin main`）：
+>
+> ```
+> git -c http.proxy=http://127.0.0.1:7897 -c http.version=HTTP/1.1 -c credential.helper= -c "credential.helper=!node D:/dsh/_tools/git-token-helper.js" push origin main
+> ```
+>
+> 三个参数都不能省：仓库本地 config 里的 `http.sslBackend` 必须是 `openssl`
+> （schannel 走代理必失败，"failed to receive handshake"）；`http.version=HTTP/1.1`
+> 显著更稳；**`github.com` 的 TLS 握手约有一半会被重置**（`api.github.com` 则是 10/10
+> 成功），所以任何 git/HTTP 操作都要重试，脚本里默认重试 8 次。`gh` 走代理只需
+> `HTTPS_PROXY=http://127.0.0.1:7897`。
+>
+> 另一处与本文不同：**`spacehog`（无后缀）这个被取代的旧产物已从 Release 删除**（原待办 9
+> 的线上部分）。原待办 10（`tools/sea/` 里两代陈旧构建输入）**未处理，仍按原样入库**。
+>
+> ---
+>
+
 > 归档文档 · 第 3 版 · 基线 commit `0dc94d7`（branch `main`，`origin/main...HEAD` = `0 0`）· 整理时间 2026-09-26
 >
 > 本文只记录概要、接口签名与逻辑约定，不粘贴源码。
