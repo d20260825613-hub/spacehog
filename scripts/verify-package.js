@@ -54,27 +54,51 @@ const prefix = path.join(sandbox, 'prefix');
 const cache = path.join(sandbox, 'npm-cache');
 
 /**
- * The installed CLI entry, whatever npm decided to name it on this platform.
+ * The installed CLI entry, and the package directory it lives in.
  *
- * `npm install --global --prefix <p>` puts the command in a different place per
+ * `npm install --global --prefix <p>` puts things in a different place per
  * platform, and the first version of this list only knew the Windows layout:
  *
- *   Windows  <prefix>\spacehog.cmd          (and a bare `spacehog` shell script)
- *   POSIX    <prefix>/bin/spacehog          (a symlink into node_modules)
+ *   Windows  <prefix>\spacehog.cmd            command shim
+ *            <prefix>\node_modules\spacehog\  the package
+ *   POSIX    <prefix>/bin/spacehog            command symlink
+ *            <prefix>/lib/node_modules/...    the package
  *
- * so the Linux job failed with "the installed package exposes a spacehog
- * command" even though the install had succeeded. The symlink is preferred over
- * the package's own `bin/spacehog.js` because it is what a user actually runs,
- * and it only exists if npm linked the `bin` field correctly.
+ * Both bugs this caused showed up only in CI, on the ubuntu and macOS jobs:
+ * first "the installed package exposes a spacehog command" (the list had no
+ * POSIX entry at all), then — once the symlink was found — `ENOENT` on
+ * `<prefix>/node_modules/spacehog/bin/spacehog.js`, because the package is
+ * under `lib/` on POSIX and the later checks still assumed the Windows path.
+ *
+ * So the package root is now *resolved* from whichever candidate exists, and
+ * every later path is built from it instead of being hardcoded.
  */
 function installedBin() {
   const candidates = [
     path.join(prefix, 'bin', 'spacehog'), // POSIX global install
     path.join(prefix, 'spacehog.cmd'), // Windows global install
     path.join(prefix, 'spacehog'), // Windows (Git Bash style) global install
-    path.join(prefix, 'node_modules', 'spacehog', 'bin', 'spacehog.js'), // the file itself
   ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
+  const shim = candidates.find((candidate) => fs.existsSync(candidate));
+  if (shim) return shim;
+
+  const entry = packageRoots()
+    .map((root) => path.join(root, 'bin', 'spacehog.js'))
+    .find((candidate) => fs.existsSync(candidate));
+  return entry ?? null;
+}
+
+/** Candidate directories the package itself may have been installed into. */
+function packageRoots() {
+  return [
+    path.join(prefix, 'lib', 'node_modules', pkg.name), // POSIX global
+    path.join(prefix, 'node_modules', pkg.name), // Windows global
+  ];
+}
+
+/** The package directory that actually exists, or null. */
+function installedPackageRoot() {
+  return packageRoots().find((root) => fs.existsSync(root)) ?? null;
 }
 
 try {
@@ -121,8 +145,10 @@ try {
   );
 
   if (process.platform !== 'win32') {
-    const mode = fs.statSync(path.join(prefix, 'node_modules', 'spacehog', 'bin', 'spacehog.js')).mode;
-    check('bin/spacehog.js is executable after install', (mode & 0o111) !== 0, `mode ${mode.toString(8)}`);
+    const pkgRoot = installedPackageRoot();
+    const entry = pkgRoot ? path.join(pkgRoot, 'bin', 'spacehog.js') : null;
+    const mode = entry && fs.existsSync(entry) ? fs.statSync(entry).mode : 0;
+    check('bin/spacehog.js is executable after install', (mode & 0o111) !== 0, `mode ${mode.toString(8)} at ${entry}`);
   }
 
   // 4. it actually audits a directory ---------------------------------------
@@ -162,10 +188,11 @@ try {
   check('--help works from the installed copy', help.status === 0 && /Usage/.test(help.stdout));
 
   // 6. the library entry point resolves --------------------------------------
+  const libraryEntry = path.join(installedPackageRoot() ?? prefix, 'src', 'index.js');
   const importCheck = run(process.execPath, [
     '--input-type=module',
     '-e',
-    `import(${JSON.stringify(`file:///${path.join(prefix, 'node_modules', 'spacehog', 'src', 'index.js').split(path.sep).join('/')}`)}).then((m) => { if (typeof m.audit !== 'function') { console.error('audit missing'); process.exit(1); } console.log('ok'); });`,
+    `import(${JSON.stringify(`file:///${libraryEntry.split(path.sep).join('/')}`)}).then((m) => { if (typeof m.audit !== 'function') { console.error('audit missing'); process.exit(1); } console.log('ok'); });`,
   ]);
   check(
     'the programmatic API resolves from the installed package',
