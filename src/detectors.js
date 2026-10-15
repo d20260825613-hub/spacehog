@@ -62,6 +62,23 @@ export async function findDuplicates(files, options = {}) {
   // pair look like a hard link. Only trust inode data when it carries meaning.
   const inoUsable = files.some((file) => file && typeof file.ino === 'number' && file.ino !== 0);
 
+  // A read that fails during hashing used to be swallowed whole: the file
+  // simply stopped being a candidate, so a tree full of unreadable duplicates
+  // was reported as having none, with an empty error list. Keep them, capped
+  // like the walker's own errors, so the report can say the scan is incomplete.
+  const HASH_ERRORS_KEPT = 40;
+  const hashErrors = [];
+  const recordHashError = (file, err) => {
+    if (hashErrors.length < HASH_ERRORS_KEPT) {
+      hashErrors.push({
+        path: toPosix(file.path),
+        display: file.display ?? toPosix(file.path),
+        code: err?.code ?? 'EUNKNOWN',
+        message: err?.message ?? String(err),
+      });
+    }
+  };
+
   const candidates = [];
   const hardlinkGroups = [];
   let hardlinkWastedBytes = 0;
@@ -132,7 +149,8 @@ export async function findDuplicates(files, options = {}) {
         const { hash } = await hashHead(file.path, algorithm, headBytes);
         cache?.set(file, `${algorithm}:head`, hash);
         return hash;
-      } catch {
+      } catch (err) {
+        recordHashError(file, err);
         return null;
       }
     });
@@ -182,7 +200,8 @@ export async function findDuplicates(files, options = {}) {
           checked.fullHashes += 1;
           checked.bytesHashed += size;
           return hash;
-        } catch {
+        } catch (err) {
+          recordHashError(file, err);
           return null;
         }
       });
@@ -236,6 +255,7 @@ export async function findDuplicates(files, options = {}) {
     groups,
     hardlinkGroups,
     hardlinkWastedBytes,
+    hashErrors,
     stats: {
       ...checked,
       duplicateFiles,

@@ -88,7 +88,20 @@ export async function walk(root, options = {}) {
       files,
       directories,
       errors,
-      stats: { fileCount, dirCount, totalBytes, skippedDirCount, symlinkCount, symlinkedDirCount, truncated },
+      stats: {
+        fileCount,
+        dirCount,
+        totalBytes,
+        skippedDirCount,
+        symlinkCount,
+        symlinkedDirCount,
+        // Entries the walk saw but did not collect: ignored or hidden children,
+        // unfollowed symlinks, directories beyond maxDepth, unreadable entries.
+        // Non-zero means the scan is partial, and a partial scan must not be
+        // reported as a complete one.
+        uncollectedCount: directories.reduce((total, dir) => total + dir.uncollected, 0),
+        truncated,
+      },
     };
   }
 
@@ -99,7 +112,20 @@ export async function walk(root, options = {}) {
       files,
       directories,
       errors,
-      stats: { fileCount, dirCount, totalBytes, skippedDirCount, symlinkCount, symlinkedDirCount, truncated },
+      stats: {
+        fileCount,
+        dirCount,
+        totalBytes,
+        skippedDirCount,
+        symlinkCount,
+        symlinkedDirCount,
+        // Entries the walk saw but did not collect: ignored or hidden children,
+        // unfollowed symlinks, directories beyond maxDepth, unreadable entries.
+        // Non-zero means the scan is partial, and a partial scan must not be
+        // reported as a complete one.
+        uncollectedCount: directories.reduce((total, dir) => total + dir.uncollected, 0),
+        truncated,
+      },
     };
   }
 
@@ -112,13 +138,16 @@ export async function walk(root, options = {}) {
     if (signal?.aborted) break;
     const { dir, display, depth } = queue.shift();
     dirCount += 1;
-    const directory = { path: dir, display, depth, fileCount: 0, subdirCount: 0 };
+    const directory = { path: dir, display, depth, fileCount: 0, subdirCount: 0, uncollected: 0, unreadable: false };
     directories.push(directory);
 
     let entries;
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
     } catch (err) {
+      // The directory may well hold files; we simply cannot see them. Flag it
+      // so the empty-directory detector never calls it empty.
+      directory.unreadable = true;
       recordError(dir, err);
       continue;
     }
@@ -128,7 +157,10 @@ export async function walk(root, options = {}) {
     for (const entry of entries) {
       if (signal?.aborted) break;
       const name = entry.name;
-      if (!includeHidden && name.startsWith('.')) continue;
+      if (!includeHidden && name.startsWith('.')) {
+        directory.uncollected += 1;
+        continue;
+      }
 
       const full = path.join(dir, name);
       const childDisplay = display ? `${display}/${name}` : name;
@@ -138,13 +170,17 @@ export async function walk(root, options = {}) {
 
       if (entry.isSymbolicLink()) {
         symlinkCount += 1;
-        if (!followSymlinks) continue;
+        if (!followSymlinks) {
+          directory.uncollected += 1;
+          continue;
+        }
         try {
           const target = await fs.stat(full);
           isDirectory = target.isDirectory();
           isFile = target.isFile();
           if (isDirectory) symlinkedDirCount += 1;
         } catch (err) {
+          directory.uncollected += 1;
           recordError(full, err);
           continue;
         }
@@ -153,17 +189,27 @@ export async function walk(root, options = {}) {
       if (isDirectory) {
         if (ignored.has(name)) {
           skippedDirCount += 1;
+          directory.uncollected += 1;
           continue;
         }
-        if (depth + 1 > maxDepth) continue;
+        if (depth + 1 > maxDepth) {
+          directory.uncollected += 1;
+          continue;
+        }
         directory.subdirCount += 1;
         queue.push({ dir: full, display: childDisplay, depth: depth + 1 });
         continue;
       }
 
-      if (!isFile) continue;
+      // Sockets, FIFOs and device nodes are neither files nor directories, but
+      // they are still content: the directory holding one is not empty.
+      if (!isFile) {
+        directory.uncollected += 1;
+        continue;
+      }
       if (fileCount >= maxEntries) {
         truncated = true;
+        directory.uncollected += 1;
         continue;
       }
 
@@ -171,6 +217,7 @@ export async function walk(root, options = {}) {
       try {
         stat = await fs.lstat(full);
       } catch (err) {
+        directory.uncollected += 1;
         recordError(full, err);
         continue;
       }
@@ -197,6 +244,19 @@ export async function walk(root, options = {}) {
     files,
     directories,
     errors,
-    stats: { fileCount, dirCount, totalBytes, skippedDirCount, symlinkCount, symlinkedDirCount, truncated },
+    stats: {
+      fileCount,
+      dirCount,
+      totalBytes,
+      skippedDirCount,
+      symlinkCount,
+      symlinkedDirCount,
+      // Entries the walk saw but did not collect: ignored or hidden children,
+      // unfollowed symlinks, directories beyond maxDepth, unreadable entries.
+      // Non-zero means the scan is partial, and a partial scan must not be
+      // reported as a complete one.
+      uncollectedCount: directories.reduce((total, dir) => total + dir.uncollected, 0),
+      truncated,
+    },
   };
 }

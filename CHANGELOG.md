@@ -4,9 +4,9 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-15
 
-130 tests across 11 files (up from 122 across 10), green on Node 18.17, 20.11
+134 tests across 11 files (up from 130 across 11), green on Node 18.17, 20.11
 and 24; `npm run smoke` and `npm run verify:package` pass end to end.
 
 ### Added
@@ -79,6 +79,23 @@ and 24; `npm run smoke` and `npm run verify:package` pass end to end.
   `.sha256` sidecar before uploading. That script also published the superseded
   `spacehog` Linux build instead of the current `spacehog-cli`; the asset list
   names the artifact the build script actually produces.
+- **The empty-directory report named directories that plainly hold something.**
+  `findEmptyDirs` was called without the `keep` set it was written to accept, so
+  the only signal left was `fileCount === 0`. An ignored `node_modules`, a hidden
+  dotfile under `--no-hidden`, a subtree beyond `--max-depth` and any entry the
+  walk could not read all looked like empty folders — in a report whose whole
+  purpose is to name folders that are safe to delete. The walker now counts, per
+  directory, the entries it saw but did not collect, and flags a directory whose
+  `readdir` failed; `audit` turns those into the `keep` set. A new
+  `summary.uncollectedEntries` makes a partial scan visible, so a partial scan is
+  never reported as a complete one.
+- **A file that could not be read during hashing was dropped in silence.** The
+  `catch` around the head and full hash passes returned `null` and threw the error
+  away, so a tree full of unreadable duplicates was reported as having none, with
+  an empty `errors` list: the caller could not tell a clean result from an
+  incomplete one. Failures are now collected (capped at 40, carrying `path`,
+  `code` and `message`) and merged into the report's `errors`, so `--json`
+  consumers and the CI `--fail-on-dupes` check both see that the answer is short.
 
 ## [0.2.0] - 2026-09-26
 
@@ -155,6 +172,6 @@ and 24; `npm run smoke` and `npm run verify:package` pass end to end.
 - Test suite on `node:test` (98 tests at the time), an end-to-end smoke test and
   a GitHub Actions matrix for Linux, macOS and Windows on Node 18/20/22/24.
 
-[Unreleased]: https://github.com/d20260825613-hub/spacehog/compare/v0.2.0...HEAD
+[0.3.0]: https://github.com/d20260825613-hub/spacehog/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/d20260825613-hub/spacehog/releases/tag/v0.2.0
 [0.1.0]: https://github.com/d20260825613-hub/spacehog/releases/tag/v0.1.0

@@ -276,3 +276,23 @@ test('findDuplicates uses the real HashCache across two runs', async () => {
   assert.ok(memory.hits > hitsBefore, 'second run should hit the cache');
   assert.equal(resultB.stats.fullHashes, 0, 'both files came from the cache');
 });
+
+test('findDuplicates reports a read that fails instead of silently dropping it', async () => {
+  const root = await makeTree({
+    'a.bin': filler(7, 4096),
+    'b.bin': filler(7, 4096),
+  });
+  const walked = await collect(root);
+
+  // Delete one twin after the walk. The sizes still match, so it stays a
+  // candidate, but the read fails. That failure used to be swallowed, leaving
+  // "no duplicates found" with an empty error list — the caller could not tell
+  // a clean tree from an unreadable one.
+  await fs.rm(abs(root, 'b.bin'));
+
+  const result = await findDuplicates(walked.files, { concurrency: 2 });
+  assert.equal(result.groups.length, 0);
+  assert.equal(result.hashErrors.length, 1, 'the failed read must be recorded');
+  assert.equal(path.basename(result.hashErrors[0].path), 'b.bin');
+  assert.match(result.hashErrors[0].code, /^E/, 'the errno is kept for the report');
+});

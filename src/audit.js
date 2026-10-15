@@ -76,12 +76,24 @@ export async function audit(options) {
   const largeFiles = findLargeFiles(relevant, top, walked.root);
   const junk = findJunkFiles(relevant, top, { root: walked.root });
   const sparse = findSparseFiles(relevant, top, walked.root);
-  const empty = findEmptyDirs(directories);
+  // A directory counts as empty only when the walk left nothing behind in it.
+  // Counting collected files alone reported directories that plainly hold
+  // something — an ignored node_modules, a hidden dotfile, an unreadable child,
+  // a subtree cut off by maxDepth — as empty. That is the one answer this
+  // detector must never get wrong, because the report invites the reader to
+  // delete what it names.
+  const notEmpty = new Set(
+    directories
+      .filter((dir) => dir.unreadable || (dir.uncollected ?? 0) > 0)
+      .map((dir) => dir.path),
+  );
+  const empty = findEmptyDirs(directories, { keep: notEmpty });
 
   let duplicateResult = {
     groups: [],
     hardlinkGroups: [],
     hardlinkWastedBytes: 0,
+    hashErrors: [],
     stats: {
       algorithm,
       duplicateFiles: 0,
@@ -119,6 +131,11 @@ export async function audit(options) {
     };
   }
 
+  // A read that failed while hashing is a hole in the duplicate scan, so it
+  // belongs in the same list as a walk error: `--json` consumers and the CI
+  // `--fail-on-dupes` check both need to see that the answer is incomplete.
+  const errors = [...walked.errors, ...(duplicateResult.hashErrors ?? [])];
+
   const finishedAt = Date.now();
 
   return {
@@ -145,7 +162,9 @@ export async function audit(options) {
       humanTotal: formatBytes(totalBytes),
       ignoredDirectories: walked.stats.skippedDirCount,
       symlinksSkipped: followSymlinks ? 0 : walked.stats.symlinkCount,
-      errorCount: walked.errors.length,
+      errorCount: errors.length,
+      uncollectedEntries: walked.stats.uncollectedCount ?? 0,
+      hashErrors: (duplicateResult.hashErrors ?? []).length,
       truncated: walked.stats.truncated,
       durationMs: finishedAt - startedAt,
     },
@@ -159,6 +178,6 @@ export async function audit(options) {
     sparse,
     emptyDirs: empty.dirs,
     emptyDirCount: empty.count,
-    errors: walked.errors,
+    errors,
   };
 }

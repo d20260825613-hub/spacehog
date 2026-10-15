@@ -38,6 +38,43 @@ test('audit produces a complete report for the fixture tree', async () => {
   assert.equal(report.largeFiles[0].size, 4096);
 });
 
+test('a directory holding an ignored subtree is not reported as empty', async () => {
+  // `proj` collects no files of its own, so a check that only counted collected
+  // files called it empty and invited the reader to delete a directory that
+  // holds a whole node_modules tree.
+  const root = await makeTree({ 'proj/node_modules/pkg/index.js': 'x' });
+  const report = await audit({ root, cachePath: null });
+
+  const empty = report.emptyDirs.map((d) => d.display);
+  assert.ok(!empty.includes('proj'), `proj must not be called empty, got ${JSON.stringify(empty)}`);
+  assert.equal(report.summary.ignoredDirectories, 1, 'the pruned child is still counted');
+  assert.equal(report.summary.uncollectedEntries, 1, 'and it is visible in the summary');
+});
+
+test('a directory holding only hidden entries is not reported as empty', async () => {
+  // Hidden entries are collected by default, so the interesting case is
+  // --no-hidden: the walk skips the dotfile, and `cfg` is then left with a file
+  // count of zero even though something is plainly in there.
+  const root = await makeTree({ 'cfg/.env': 'SECRET=1' });
+  const report = await audit({ root, cachePath: null, includeHidden: false });
+
+  const empty = report.emptyDirs.map((d) => d.display);
+  assert.ok(!empty.includes('cfg'), `cfg holds a hidden file, got ${JSON.stringify(empty)}`);
+  assert.equal(report.summary.uncollectedEntries, 1);
+});
+
+test('a subtree cut off by maxDepth keeps its parent out of the empty list', async () => {
+  const root = await makeTree({ 'outer/inner/deep/file.txt': 'content' });
+  const report = await audit({ root, cachePath: null, maxDepth: 1 });
+
+  const empty = report.emptyDirs.map((d) => d.display);
+  assert.ok(
+    !empty.includes('outer'),
+    `outer holds a subtree the depth limit hid, got ${JSON.stringify(empty)}`,
+  );
+  assert.ok(report.summary.uncollectedEntries >= 1);
+});
+
 test('audit includes ignored directories when asked', async () => {
   const root = await makeFixture();
   const report = await audit({ root, ignoreDirs: false, cachePath: null });
